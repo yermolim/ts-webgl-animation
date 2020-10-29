@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        html, body {
+            position: relative;
+            min-width: 320px;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }        
+        .animation-container {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            padding: 0;
+            margin: 0;
+            background-size: cover;
+            background: linear-gradient(rgb(2, 1, 17) 50%, 
+            rgb(2, 28, 53)) no-repeat;
+        }        
+        .left {
+            left: 0;
+            right: 50%;
+        }        
+        .right {
+            left: 50%;
+            right: 0;
+        }
+    </style>    
+    <link rel="icon" href="data:,">
+    <base href="/">
+    <meta charset="UTF-8">
+    <meta name="description" content="Dots animation test">
+    <meta name="author" content="Volodymyr Yermolenko">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0">
+    <title>Dots animation test</title>
+</head>
+<body>  
+    <div id="container-geometric" class="animation-container left"></div>
+    <div id="container-snow" class="animation-container right"></div>
+    
+    <script src="index.umd.min.js"></script>
+    <script async type="module">
+
+        (async function(){
+            
+            const factory = dotsAnim.AnimationFactory; 
+
+            let geometricConfig;
+            const geometricConfigRes = await fetch("./anim.config-geometric.json");
+            if (geometricConfigRes.ok) {
+                const text = await geometricConfigRes.text();
+                geometricConfig = JSON.parse(text);
+            }
+
+            const geometricAnimation = factory.createDotsAnimation( // create 'IAnimationObject'
+                        "#container-geometric", // selector of existing 'HTMLElement' container
+                        {}); // config that implements 'IAnimationOptions' properties
+            geometricAnimation.start();
+
+
+            let snowConfig;
+            const snowConfigRes = await fetch("./anim.config-snow.json");
+            if (snowConfigRes.ok) {
+                const text = await snowConfigRes.text();
+                snowConfig = JSON.parse(text);
+            }
+
+            const snowAnimation = factory.createDotsAnimation("#container-snow", snowConfig);
+            snowAnimation.start();
+
+        })();
+
+    </script>    
+</body>
+</html>
