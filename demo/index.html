@@ -54,9 +54,9 @@
                 geometricConfig = JSON.parse(text);
             }
 
-            const geometricAnimation = factory.createDotsAnimation( // create 'IAnimationObject'
+            const geometricAnimation = factory.createDotsAnimation( // create 'IAnimation' instance
                         "#container-geometric", // selector of existing 'HTMLElement' container
-                        {}); // config that implements 'IAnimationOptions' properties
+                        {}); // animation options config
             geometricAnimation.start();
 
 

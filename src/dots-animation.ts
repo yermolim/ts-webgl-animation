@@ -1,8 +1,33 @@
-import { defaultOptions } from "./options";
-import { getRandomUuid, hexToRgba, getRandomInt, getRandomArbitrary, 
-  getDistance, drawCircle, drawLine } from "./common";
-import { IPositionObject, IAnimationControl, IAnimationControlFactory, 
-  IAnimationObject, IAnimationOptions } from "./interfaces";
+import { getRandomUuid, hexToRgbaString, getRandomInt, getRandomArbitrary } from "./common";
+import { IPositionObject, 
+  IAnimation, IAnimationOptions, IAnimationControl, IAnimationControlType,
+  IWebGlAnimationControlType, IWebGlAnimationControl} from "./interfaces";
+import { DotAnimationOptions } from "./options";
+import { getDistance2D, Vec2 } from "./math";
+
+function drawCircle(ctx: CanvasRenderingContext2D,
+  x: number, y: number, r: number, colorS: string | null, colorF: string | null): void {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2, true);
+  if (colorF !== null) {
+    ctx.fillStyle = colorF;
+    ctx.fill();
+  }
+  if (colorS !== null) {
+    ctx.strokeStyle = colorS;
+    ctx.stroke();
+  }
+}
+
+function drawLine(ctx: CanvasRenderingContext2D,
+  x1: number, y1: number, x2: number, y2: number, width: number, color: string) {
+  ctx.lineWidth = width;
+  ctx.strokeStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
 
 interface IDotProps {
   x: number;
@@ -43,9 +68,9 @@ class Dot {
     this._opacitySCurrent = _opacitySMax;                
     this._opacityFCurrent = _opacityFMax;                
     this._colorS = _colorSHex === null ? 
-      null : hexToRgba(_colorSHex, this._opacitySCurrent, 100);
+      null : hexToRgbaString(_colorSHex, this._opacitySCurrent / 100);
     this._colorF = _colorFHex === null ? 
-      null : hexToRgba(_colorFHex, this._opacityFCurrent, 100);
+      null : hexToRgbaString(_colorFHex, this._opacityFCurrent / 100);
   }
 
   getProps(): IDotProps {
@@ -95,7 +120,7 @@ class Dot {
         this._opacitySCurrent = this._opacitySMin;
         this._opacitySStep *= -1;
       }
-      this._colorS = hexToRgba(this._colorSHex, this._opacityFCurrent, 100);
+      this._colorS = hexToRgbaString(this._colorSHex, this._opacityFCurrent / 100);
     }
     if (this._opacityFStep !== 0 && this._colorFHex !== null) {
       this._opacityFCurrent += this._opacityFStep;
@@ -106,7 +131,7 @@ class Dot {
         this._opacityFCurrent = this._opacityFMin;
         this._opacityFStep *= -1;
       }
-      this._colorF = hexToRgba(this._colorFHex, this._opacityFCurrent, 100);
+      this._colorF = hexToRgbaString(this._colorFHex, this._opacityFCurrent / 100);
     }
   }
 
@@ -121,7 +146,7 @@ class DotControl implements IAnimationControl {
   private _array: Dot[] = [];
   private _maxNumber = 100;
   private _lastDpr = 0;
-  private readonly _options: IAnimationOptions;
+  private readonly _options: DotAnimationOptions;
   private readonly _canvas: HTMLCanvasElement;
   private readonly _canvasCtx: CanvasRenderingContext2D;
 
@@ -132,7 +157,10 @@ class DotControl implements IAnimationControl {
       throw new Error("Canvas context is null");
     }
     this._canvasCtx = canvasCtx;
-    this._options = options;
+    if (!(options instanceof DotAnimationOptions)) {
+      throw new Error("Options are not an instance of DotAnimationOptions");
+    }
+    this._options = <DotAnimationOptions>options;
   }
 
   setPauseState(pauseState: boolean) {
@@ -296,7 +324,7 @@ class DotControl implements IAnimationControl {
       for (let j = i; j < dotArray.length; j++) {
         const dotIParams = dotArray[i].getProps();
         const dotJParams = dotArray[j].getProps();
-        const distance = Math.floor(getDistance(dotIParams.x, dotIParams.y, dotJParams.x, dotJParams.y));
+        const distance = Math.floor(getDistance2D(dotIParams.x, dotIParams.y, dotJParams.x, dotJParams.y));
         if (distance <= maxDistance) {
           closePairs.push([dotIParams.x, dotIParams.y, dotJParams.x, dotJParams.y, distance]);
         }
@@ -310,7 +338,7 @@ class DotControl implements IAnimationControl {
     const dotsInCircle: [Dot, number][] = [];
     for (const dot of this._array) {
       const dotParams = dot.getProps();
-      const distance = getDistance(position.x, position.y, dotParams.x, dotParams.y);
+      const distance = getDistance2D(position.x, position.y, dotParams.x, dotParams.y);
       if (distance < radius) {
         dotsInCircle.push([dot, distance]);
       }
@@ -337,7 +365,7 @@ class DotControl implements IAnimationControl {
     const width = this._options.lineWidth;
     for (const pair of pairs) {
       const opacity = (1 - pair[4] / lineLength) / 2;
-      const color = hexToRgba(this._options.lineColor, opacity);
+      const color = hexToRgbaString(this._options.lineColor, opacity);
       drawLine(this._canvasCtx, pair[0], pair[1], pair[2], pair[3], width, color);
     }
   }
@@ -349,13 +377,13 @@ class DotControl implements IAnimationControl {
       const dot = item[0];
       const dotParams = dot.getProps();
       const opacity = (1 - item[1] / radius);
-      const color = hexToRgba(lineColor, opacity);
+      const color = hexToRgbaString(lineColor, opacity);
       drawLine(this._canvasCtx, position.x, position.y, dotParams.x, dotParams.y, lineWidth, color);
     }
   }
 }
 
-class DotsAnimation implements IAnimationObject {
+class DotsAnimation implements IAnimation {
 
   private readonly _parent: HTMLElement;
   private readonly _canvas: HTMLCanvasElement;
@@ -367,7 +395,7 @@ class DotsAnimation implements IAnimationObject {
   private readonly _mousePosition: IPositionObject;
   private _isMouseClicked = false;
 
-  constructor(parent: HTMLElement, options: IAnimationOptions, constructor: IAnimationControlFactory) {
+  constructor(parent: HTMLElement, options: IAnimationOptions, constructor: IAnimationControlType) {
     this._parent = parent;
 
     this._mousePosition = {
@@ -393,7 +421,7 @@ class DotsAnimation implements IAnimationObject {
       .animationControlFactory(constructor, this._canvas, options);
   }
   
-  static animationControlFactory(constructor: IAnimationControlFactory,
+  static animationControlFactory(constructor: IAnimationControlType,
     canvas: HTMLCanvasElement, options: IAnimationOptions): IAnimationControl {
     return new constructor(canvas, options);
   }
@@ -457,9 +485,242 @@ class DotsAnimation implements IAnimationObject {
   }
 }
 
+//WIP
+class AnimationWebGl implements IAnimation {
+  private _options: IAnimationOptions;
+  private _controlType: IWebGlAnimationControlType;
+  
+  private _container: HTMLElement;
+  private _canvas: HTMLCanvasElement;
+  private _control: IWebGlAnimationControl;
+
+  private _resizeObserver: ResizeObserver;  
+  private _resolution = new Vec2();
+  private _pointerPosition = new Vec2();
+  private _pointerIsDown: boolean;
+
+  private _animationTimerId: number;  
+  private _animationStartTimeStamp = 0;
+  private _lastFrameTimeStamp = 0;
+  private _lastFrameTime = 0;
+  private _lastFramePreparationTime = 0;
+  private _lastFrameRenderTime = 0;
+
+  constructor(container: HTMLElement, options: IAnimationOptions, controlType: IWebGlAnimationControlType) {  
+    this._options = options;
+    this._container = container;
+    this._controlType = controlType;
+
+    this.initCanvas();
+    this.initControl();
+    this.addEventListeners();
+  }
+
+  destroy() {
+    this.stop();
+    this.removeEventListeners();
+
+    this._control.destroy();
+    this._canvas.remove();
+  }
+
+  // #region animation playback
+  start() {   
+    if (this._animationStartTimeStamp) { // that means animation was paused
+      const timeSinceLastFrame = performance.now() - this._lastFrameTimeStamp;
+      this._animationStartTimeStamp += timeSinceLastFrame; // shift animation start timestamp by pause length
+    }
+
+    this._animationTimerId = setInterval(() => {     
+      const framePreparationStart = performance.now();
+      const elapsedTime = framePreparationStart - this._animationStartTimeStamp;
+
+      this._control.prepareNextFrame(this._resolution, this._pointerPosition, this._pointerIsDown, elapsedTime);
+
+      this._lastFramePreparationTime = performance.now() - framePreparationStart;
+
+      requestAnimationFrame(() => {
+        const frameRenderStart = performance.now();
+
+        this._control.renderFrame();
+
+        const frameRenderEnd = performance.now();
+        this._lastFrameTimeStamp = frameRenderEnd;
+        this._lastFrameRenderTime = frameRenderEnd - frameRenderStart;
+        this._lastFrameTime = frameRenderEnd - framePreparationStart;
+      });
+    }, 1000/this._options.expectedFps);
+  }
+
+  pause() {    
+    if (this._animationTimerId) {
+      clearInterval(this._animationTimerId);
+      this._animationTimerId = null;
+    }
+  }
+
+  stop() {
+    this.pause();
+    this._animationStartTimeStamp = 0;
+    window.setTimeout(() => this._control.clear(), 20);
+  }
+  //#endregion
+
+  // #region event handlers
+  onResize = (e: readonly ResizeObserverEntry[]) => {
+    const dpr = window.devicePixelRatio;
+    const rect = this._container.getBoundingClientRect();
+    const x = rect.width * dpr;
+    const y = rect.height * dpr;
+
+    this._canvas.width = x;
+    this._canvas.height = y;
+    this._resolution.set(x, y)
+  }
+
+  onPointerMove = (e: PointerEvent) => {
+    const dpr = window.devicePixelRatio;
+
+    const parentRect = this._container.getBoundingClientRect();
+    const xRelToDoc = parentRect.left +
+            document.documentElement.scrollLeft;
+    const yRelToDoc = parentRect.top +
+            document.documentElement.scrollTop;
+
+    const x = (e.clientX - xRelToDoc + window.pageXOffset) * dpr;
+    const y = (e.clientY - yRelToDoc + window.pageYOffset) * dpr;
+
+    this._pointerPosition.set(x, y);
+  }
+
+  onPointerDown = (e: PointerEvent) => {
+    this._pointerIsDown = true;
+  }
+
+  onPointerUp = (e: PointerEvent) => {
+    this._pointerIsDown = false;
+  }
+  // #endregion
+
+  private initCanvas() {   
+    const canvas =  document.createElement("canvas");
+    canvas.id = getRandomUuid();
+    canvas.style.display = "block";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.filter = `blur(${this._options.blur}px)`;
+
+    this._container.append(canvas);
+    this._canvas = canvas;
+
+    this.onResize(null);
+  }
+    
+  private initControl() {
+    this._control = new this._controlType(this._canvas.getContext("webgl"), this._options);
+  }
+
+  private addEventListeners() {
+    this._resizeObserver = new ResizeObserver(this.onResize);
+    this._resizeObserver.observe(this._container);
+
+    this._container.addEventListener("pointermove", this.onPointerMove);
+    window.addEventListener("pointerdown", this.onPointerDown);
+    window.addEventListener("pointerup", this.onPointerUp);
+  }
+
+  private removeEventListeners() {
+    this._resizeObserver.unobserve(this._container);
+    this._resizeObserver.disconnect();
+    this._resizeObserver = null;
+
+    this._container.removeEventListener("pointermove", this.onPointerMove);
+    window.removeEventListener("pointerdown", this.onPointerDown);
+    window.removeEventListener("pointerup", this.onPointerUp);
+  }
+}
+
+class DotWebGlAnimationControl implements IWebGlAnimationControl {
+  private readonly _vertexShader = `
+    #pragma vscode_glsllint_stage : vert
+
+    attribute vec4 position;
+
+    void main() {
+      gl_Position = position;
+    }
+  `;
+
+  private readonly _fragmentShader = `
+    #pragma vscode_glsllint_stage : frag
+
+    precision highp float;
+
+    void main() {
+      gl_FragColor = vec4(1, 0, 0, 1);
+    }
+  `;
+  
+  private _options: IAnimationOptions;
+  private _gl: WebGLRenderingContext;
+
+  constructor(gl: WebGLRenderingContext, options: IAnimationOptions) {
+    this._options = options;
+    this._gl = gl;
+  }
+
+  prepareNextFrame(resolution: Vec2, pointerPosition: Vec2, pointerDown: boolean, elapsedTime: number) {
+    this.resize(resolution);
+
+    
+  }
+
+  renderFrame() {
+    
+  }
+
+  clear() {
+    this._gl.clearColor(0, 0, 0, 0);
+    this._gl.clear(this._gl.COLOR_BUFFER_BIT);
+  }
+
+  destroy() {
+    // TODO: lose context and delete all gl data
+  }
+
+  private resize(resolution: Vec2) {
+    if (this._gl.canvas.width !== resolution.x) {
+      this._gl.canvas.width = resolution.x;
+    }
+    if (this._gl.canvas.height !== resolution.y) {
+      this._gl.canvas.height = resolution.y;
+    }
+  }
+}
+
+class DotAnimationWebGlData {  
+  constructor(options: DotAnimationOptions) {
+
+    const length = 10000;
+
+    const position = new Float32Array(length * 3);
+    const color = new Uint8Array(length * 4);
+
+    const velocity = new Float32Array(length * 3);
+
+    const resolution = new Uint16Array(2); 
+    const mousePosition = new Uint16Array(2);
+    
+    const maxLineLength = 100;
+
+    const elapsedTime = 0;
+    const pointerIsDown = false;
+  }
+} 
+//
+
 class AnimationFactory {
-  static createDotsAnimation(containerSelector: string, options: IAnimationOptions = null): IAnimationObject {
-    const combinedOptions = Object.assign({}, defaultOptions, options || {});
+  static createDotsAnimation(containerSelector: string, options: any = null): IAnimation {    
 
     const container = document.querySelector(containerSelector);
     if (!container) { 
@@ -469,8 +730,9 @@ class AnimationFactory {
       throw new Error("Container is not positioned");
     }
 
-    return new DotsAnimation(container as HTMLElement, combinedOptions, DotControl);
+    const combinedOptions = new DotAnimationOptions(options);    
+    return new AnimationWebGl(container as HTMLElement, combinedOptions, DotWebGlAnimationControl);
   }
 }
 
-export { IAnimationOptions, IAnimationObject, AnimationFactory };
+export { IAnimation, AnimationFactory };

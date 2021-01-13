@@ -2,6 +2,7 @@
 
 # compiled output
 /tsc
+/tmp
 
 # dependencies
 /node_modules
