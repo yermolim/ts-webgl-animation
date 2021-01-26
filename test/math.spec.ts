@@ -1,5 +1,55 @@
-import { radToDeg, degToRad, getDistance2D, getDistance3D, clamp, lerp, Vec2, Vec3, Vec4, Mat3, Mat4, Quaternion, EulerAngles } from "../src/math";
 import "jasmine-spec-reporter";
+
+import { radToDeg, degToRad, getDistance2D, getDistance3D, clamp, lerp, getRandomInt, getRandomFloat } from "../src/math/common";
+import { Mat4 } from "../src/math/mat4";
+
+describe("getRandomInt", () => {
+  const min = -100;
+  const max = 100;
+  let notInt: boolean;
+  let outsideRange: boolean;
+  for (let i = 0; i < 100; i++) {
+    const rndNumber = getRandomInt(min, max);
+    if (!Number.isInteger(rndNumber)) {
+      notInt = true;
+      break;
+    }
+    if (rndNumber < min || rndNumber > max) {
+      outsideRange = true;
+      break;
+    }
+  }
+  it("should produce integer", () => {
+    expect(notInt).toBeFalsy();
+  });
+  it("should be equal or less than max and equal of less than min", () => {
+    expect(outsideRange).toBeFalsy();
+  });
+});
+
+describe("getRandomFloat", () => {
+  const min = -100;
+  const max = 100;
+  let notNumber: boolean;
+  let outsideRange: boolean;
+  for (let i = 0; i < 100; i++) {
+    const rndNumber = getRandomFloat(min, max);
+    if (Number.isNaN(rndNumber)) {
+      notNumber = true;
+      break;
+    }
+    if (rndNumber < min || rndNumber > max) {
+      outsideRange = true;
+      break;
+    }
+  }
+  it("should produce number", () => {
+    expect(notNumber).toBeFalsy();
+  });
+  it("should be equal or less than max and equal of less than min", () => {
+    expect(outsideRange).toBeFalsy();
+  });
+});
 
 describe("radToDeg", () => {
   const result1 = radToDeg(Math.PI / 4);
@@ -100,7 +150,7 @@ describe("lerp", () => {
 describe("Mat4", () => { 
   const matTest = new Mat4();
   it("parameterless constructor should create identity matrix", () => {
-    expect(matTest.matrix.toString()).toEqual("1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1");
+    expect(matTest.toArray().toString()).toEqual("1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1");
   });
 
   const mat1 = new Mat4().set(
@@ -111,8 +161,8 @@ describe("Mat4", () => {
   );
   const mat2 = new Mat4().set(...[11,12,13,14,21,22,23,24,31,32,33,34,41,42,43,44]); 
   it("set method overloads should work correctly", () => {
-    expect(mat1.matrix.toString()).toEqual("11,12,13,14,21,22,23,24,31,32,33,34,41,42,43,44");
-    expect(mat2.matrix.toString()).toEqual("11,12,13,14,21,22,23,24,31,32,33,34,41,42,43,44");
+    expect(mat1.toArray().toString()).toEqual("11,12,13,14,21,22,23,24,31,32,33,34,41,42,43,44");
+    expect(mat2.toArray().toString()).toEqual("11,12,13,14,21,22,23,24,31,32,33,34,41,42,43,44");
   });
 
   it("equals method should work correctly", () => {
@@ -126,19 +176,19 @@ describe("Mat4", () => {
   });
   
   it("transpose should work correctly", () => {
-    expect(Mat4.transpose(mat1).matrix.toString()).toEqual("11,21,31,41,12,22,32,42,13,23,33,43,14,24,34,44");
-    expect(mat1.transpose().matrix.toString()).toEqual("11,21,31,41,12,22,32,42,13,23,33,43,14,24,34,44");
-    expect(mat1.transpose().matrix.toString()).toEqual("11,12,13,14,21,22,23,24,31,32,33,34,41,42,43,44");
+    expect(Mat4.transpose(mat1).toArray().toString()).toEqual("11,21,31,41,12,22,32,42,13,23,33,43,14,24,34,44");
+    expect(mat1.transpose().toArray().toString()).toEqual("11,21,31,41,12,22,32,42,13,23,33,43,14,24,34,44");
+    expect(mat1.transpose().toArray().toString()).toEqual("11,12,13,14,21,22,23,24,31,32,33,34,41,42,43,44");
   });
   
   const matScale = Mat4.buildScale(3);
   it("scale matrix builder should create correct scale matrix", () => {
-    expect(matScale.matrix.toString()).toEqual("3,0,0,0,0,3,0,0,0,0,3,0,0,0,0,1");
+    expect(matScale.toArray().toString()).toEqual("3,0,0,0,0,3,0,0,0,0,3,0,0,0,0,1");
   });
   
   const matTranslate = Mat4.buildTranslate(30, 70, -10);
   it("translate matrix builder should correct valid translate matrix", () => {
-    expect(matTranslate.matrix.toString()).toEqual("1,0,0,0,0,1,0,0,0,0,1,0,30,70,-10,1");
+    expect(matTranslate.toArray().toString()).toEqual("1,0,0,0,0,1,0,0,0,0,1,0,30,70,-10,1");
   });
     
   const angleX = Math.PI/6;
@@ -179,11 +229,11 @@ describe("Mat4", () => {
 
   const matRotation = matRotationX.clone().multiply(matRotationY).multiply(matRotationZ);
   const matTransform = matTranslate.clone().multiply(matRotation).multiply(matScale);
-  const matTransformInv = Mat4.inverse(matTransform);
+  const matTransformInv = Mat4.invert(matTransform);
   const matTestMultiplied = matTest.clone().multiply(matTransform);
   const matTestInverted = matTestMultiplied.clone().multiply(matTransformInv);
   it("inversion and multiplication should return correct matrix", () => {
-    expect(Mat4.inverse(matTransformInv).equals(matTransform)).toBeTruthy();    
+    expect(Mat4.invert(matTransformInv).equals(matTransform)).toBeTruthy();
     expect(matTest.equals(matTestInverted)).toBeTruthy();    
   });
 

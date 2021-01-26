@@ -1,4 +1,4 @@
-import { Vec2 } from "./math";
+import { Vec2 } from "./math/vec2";
 
 interface IAnimationOptions {
   expectedFps: number;  

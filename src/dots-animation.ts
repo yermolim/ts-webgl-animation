@@ -1,9 +1,10 @@
-import { getRandomUuid, hexToRgbaString, getRandomInt, getRandomArbitrary } from "./common";
+import { getRandomUuid, hexToRgbaString } from "./common";
 import { IPositionObject, 
   IAnimation, IAnimationOptions, IAnimationControl, IAnimationControlType,
   IWebGlAnimationControlType, IWebGlAnimationControl} from "./interfaces";
+import { getRandomInt, getRandomFloat, getDistance2D } from "./math/common";
+import { Vec2 } from "./math/vec2";
 import { DotAnimationOptions } from "./options";
-import { getDistance2D, Vec2 } from "./math";
 
 function drawCircle(ctx: CanvasRenderingContext2D,
   x: number, y: number, r: number, colorS: string | null, colorF: string | null): void {
@@ -258,8 +259,8 @@ class DotControl implements IAnimationControl {
     // dimensions params
     const dimRatio = this._options.dprDependentDimensions ? window.devicePixelRatio : 1;
     const offset = this._options.drawLines ? this._options.lineLength * dimRatio : 0;
-    const xSpeed = getRandomArbitrary(this._options.minSpeedX, this._options.maxSpeedX) * dimRatio;
-    const ySpeed = getRandomArbitrary(this._options.minSpeedY, this._options.maxSpeedY) * dimRatio;
+    const xSpeed = getRandomFloat(this._options.minSpeedX, this._options.maxSpeedX) * dimRatio;
+    const ySpeed = getRandomFloat(this._options.minSpeedY, this._options.maxSpeedY) * dimRatio;
     const radius = getRandomInt(this._options.minR, this._options.maxR) * dimRatio;
     // fill/stroke color params
     let colorS: string | null = null;

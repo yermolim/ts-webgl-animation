@@ -1,4 +1,4 @@
-import { getRandomUuid, getRandomInt, getRandomArbitrary, hexToRgbaString } from "../src/common";
+import { getRandomUuid, hexToRgbaString } from "../src/common";
 import "jasmine-spec-reporter";
 
 describe("getRandomUuid", () => {
@@ -9,54 +9,6 @@ describe("getRandomUuid", () => {
   const uuid2 = getRandomUuid();
   it("uuids must be different", () => {
     expect(uuid1).not.toEqual(uuid2);
-  });
-});
-
-describe("getRandomInt", () => {
-  const min = -100;
-  const max = 100;
-  let notInt: boolean;
-  let outsideRange: boolean;
-  for (let i = 0; i < 100; i++) {
-    const rndNumber = getRandomInt(min, max);
-    if (!Number.isInteger(rndNumber)) {
-      notInt = true;
-      break;
-    }
-    if (rndNumber < min || rndNumber > max) {
-      outsideRange = true;
-      break;
-    }
-  }
-  it("should produce integer", () => {
-    expect(notInt).toBeFalsy();
-  });
-  it("should be equal or less than max and equal of less than min", () => {
-    expect(outsideRange).toBeFalsy();
-  });
-});
-
-describe("getRandomArbitrary", () => {
-  const min = -100;
-  const max = 100;
-  let notNumber: boolean;
-  let outsideRange: boolean;
-  for (let i = 0; i < 100; i++) {
-    const rndNumber = getRandomArbitrary(min, max);
-    if (Number.isNaN(rndNumber)) {
-      notNumber = true;
-      break;
-    }
-    if (rndNumber < min || rndNumber > max) {
-      outsideRange = true;
-      break;
-    }
-  }
-  it("should produce number", () => {
-    expect(notNumber).toBeFalsy();
-  });
-  it("should be equal or less than max and equal of less than min", () => {
-    expect(outsideRange).toBeFalsy();
   });
 });
 
