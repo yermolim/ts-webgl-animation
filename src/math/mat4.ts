@@ -129,7 +129,7 @@ export class Mat4 implements Mat {
       m.x_y, m.y_y, m.z_y, m.w_y,
       m.x_z, m.y_z, m.z_z, m.w_z,
       m.x_w, m.y_w, m.z_w, m.w_w,
-    )
+    );
     return res;
   }
 
@@ -167,9 +167,9 @@ export class Mat4 implements Mat {
     // check if vZ and up are parallel
     if (!vX.getMagnitude()) {
       if (Math.abs(up.z) === 1) {
-        vZ.x += 0.00001
+        vZ.x += 0.00001;
       } else {
-        vZ.z += 0.00001
+        vZ.z += 0.00001;
       }
       vZ.normalize();
       vX = Vec3.crossProduct(up, vZ).normalize();
@@ -293,9 +293,9 @@ export class Mat4 implements Mat {
 
   set(...elements: number[]): Mat4;
   set(x_x: number, x_y: number, x_z: number, x_w: number,
-    y_x: number, y_y: number, y_z: number, y_w:number,
-    z_x: number, z_y: number, z_z: number, z_w:number,
-    w_x: number, w_y: number, w_z: number, w_w:number): Mat4 {
+    y_x: number, y_y: number, y_z: number, y_w: number,
+    z_x: number, z_y: number, z_z: number, z_w: number,
+    w_x: number, w_y: number, w_z: number, w_w: number): Mat4 {
     this._matrix[0] = x_x;
     this._matrix[1] = x_y;
     this._matrix[2] = x_z;
@@ -387,7 +387,7 @@ export class Mat4 implements Mat {
       temp.x_y, temp.y_y, temp.z_y, temp.w_y,
       temp.x_z, temp.y_z, temp.z_z, temp.w_z,
       temp.x_w, temp.y_w, temp.z_w, temp.w_w,
-    )
+    );
     return this;
   }  
 
@@ -427,7 +427,7 @@ export class Mat4 implements Mat {
     return det;
   } 
 
-  getTRS(): { t: Vec3; r: Quaternion, s: Vec3 } {
+  getTRS(): { t: Vec3; r: Quaternion; s: Vec3 } {
     const t = new Vec3(this.w_x, this.w_y, this.w_z);
     
     const d = this.getDeterminant();
@@ -487,6 +487,10 @@ export class Mat4 implements Mat {
   toArray(): number[] {
     return this._matrix.slice();
   }
+
+  toTypedArray(): Float32Array {
+    return new Float32Array(this);
+  } 
 
   *[Symbol.iterator](): Iterator<number> {
     for (let i = 0; i < this.length; i++) {      

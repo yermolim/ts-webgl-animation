@@ -43,8 +43,9 @@ export function smoothstep(v: number, min: number, max: number, perlin: false) {
 }
 
 export interface NumberElements extends Iterable<number> {  
-  readonly length: number
+  readonly length: number;
   toArray(): number[];
+  toTypedArray(): Float32Array;
 }
 
 export interface Vec extends NumberElements {

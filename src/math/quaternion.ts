@@ -126,7 +126,7 @@ export class Quaternion {
         0.25 / s, 
       );
     } else if (x_x > y_y && x_x > z_z) {
-      const s = 2 * Math.sqrt(1 + x_x - y_y - z_z)
+      const s = 2 * Math.sqrt(1 + x_x - y_y - z_z);
       this.set(
         0.25 * s, 
         (y_x + x_y) / s, 
@@ -134,7 +134,7 @@ export class Quaternion {
         (y_z - z_y) / s, 
       );
     } else if (y_y > z_z) {
-      const s = 2 * Math.sqrt(1 + y_y - x_x - z_z)
+      const s = 2 * Math.sqrt(1 + y_y - x_x - z_z);
       this.set(
         (y_x + x_y) / s,
         0.25 * s,  
@@ -142,7 +142,7 @@ export class Quaternion {
         (z_x - x_z) / s, 
       );
     } else {
-      const s = 2 * Math.sqrt(1 + z_z - x_x - y_y)
+      const s = 2 * Math.sqrt(1 + z_z - x_x - y_y);
       this.set(
         (z_x + x_z) / s, 
         (z_y + y_z) / s, 
@@ -165,40 +165,40 @@ export class Quaternion {
 
     switch (e.order) {
       case "XYZ":
-				this.x = s_x * c_y * c_z + c_x * s_y * s_z;
-				this.y = c_x * s_y * c_z - s_x * c_y * s_z;
-				this.z = c_x * c_y * s_z + s_x * s_y * c_z;
-				this.w = c_x * c_y * c_z - s_x * s_y * s_z;
+        this.x = s_x * c_y * c_z + c_x * s_y * s_z;
+        this.y = c_x * s_y * c_z - s_x * c_y * s_z;
+        this.z = c_x * c_y * s_z + s_x * s_y * c_z;
+        this.w = c_x * c_y * c_z - s_x * s_y * s_z;
         break;
       case "XZY":
-				this.x = s_x * c_y * c_z - c_x * s_y * s_z;
-				this.y = c_x * s_y * c_z - s_x * c_y * s_z;
-				this.z = c_x * c_y * s_z + s_x * s_y * c_z;
-				this.w = c_x * c_y * c_z + s_x * s_y * s_z;
+        this.x = s_x * c_y * c_z - c_x * s_y * s_z;
+        this.y = c_x * s_y * c_z - s_x * c_y * s_z;
+        this.z = c_x * c_y * s_z + s_x * s_y * c_z;
+        this.w = c_x * c_y * c_z + s_x * s_y * s_z;
         break;
       case "YXZ":
-				this.x = s_x * c_y * c_z + c_x * s_y * s_z;
-				this.y = c_x * s_y * c_z - s_x * c_y * s_z;
-				this.z = c_x * c_y * s_z - s_x * s_y * c_z;
-				this.w = c_x * c_y * c_z + s_x * s_y * s_z;
+        this.x = s_x * c_y * c_z + c_x * s_y * s_z;
+        this.y = c_x * s_y * c_z - s_x * c_y * s_z;
+        this.z = c_x * c_y * s_z - s_x * s_y * c_z;
+        this.w = c_x * c_y * c_z + s_x * s_y * s_z;
         break;
       case "YZX":
-				this.x = s_x * c_y * c_z + c_x * s_y * s_z;
-				this.y = c_x * s_y * c_z + s_x * c_y * s_z;
-				this.z = c_x * c_y * s_z - s_x * s_y * c_z;
-				this.w = c_x * c_y * c_z - s_x * s_y * s_z;
+        this.x = s_x * c_y * c_z + c_x * s_y * s_z;
+        this.y = c_x * s_y * c_z + s_x * c_y * s_z;
+        this.z = c_x * c_y * s_z - s_x * s_y * c_z;
+        this.w = c_x * c_y * c_z - s_x * s_y * s_z;
         break;
       case "ZXY":
-				this.x = s_x * c_y * c_z - c_x * s_y * s_z;
-				this.y = c_x * s_y * c_z + s_x * c_y * s_z;
-				this.z = c_x * c_y * s_z + s_x * s_y * c_z;
-				this.w = c_x * c_y * c_z - s_x * s_y * s_z;
+        this.x = s_x * c_y * c_z - c_x * s_y * s_z;
+        this.y = c_x * s_y * c_z + s_x * c_y * s_z;
+        this.z = c_x * c_y * s_z + s_x * s_y * c_z;
+        this.w = c_x * c_y * c_z - s_x * s_y * s_z;
         break;
       case "ZYX":
-				this.x = s_x * c_y * c_z - c_x * s_y * s_z;
-				this.y = c_x * s_y * c_z + s_x * c_y * s_z;
-				this.z = c_x * c_y * s_z - s_x * s_y * c_z;
-				this.w = c_x * c_y * c_z + s_x * s_y * s_z;
+        this.x = s_x * c_y * c_z - c_x * s_y * s_z;
+        this.y = c_x * s_y * c_z + s_x * c_y * s_z;
+        this.z = c_x * c_y * s_z - s_x * s_y * c_z;
+        this.w = c_x * c_y * c_z + s_x * s_y * s_z;
         break;
     }
 

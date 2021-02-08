@@ -55,7 +55,7 @@ export class EulerAngles {
   }
 
   setFromRotationMatrix(m: Mat, order: EulerRotationOrder): EulerAngles {
-    const elements = m.toArray()
+    const elements = m.toArray();
     if (elements.length !== 16) {
       throw new Error("Matrix must contain 16 elements");
     }
@@ -63,64 +63,64 @@ export class EulerAngles {
 
     switch (order) {
       case "XYZ":
-				this.y = Math.asin(clamp(z_x, -1, 1));
-				if (Math.abs(z_x) < 0.999999) {
-					this.x = Math.atan2(-z_y, z_z);
-					this.z = Math.atan2(-y_x, x_x);
-				} else {
-					this.x = Math.atan2(y_z, y_y);
-					this.z = 0;
-				}
+        this.y = Math.asin(clamp(z_x, -1, 1));
+        if (Math.abs(z_x) < 0.999999) {
+          this.x = Math.atan2(-z_y, z_z);
+          this.z = Math.atan2(-y_x, x_x);
+        } else {
+          this.x = Math.atan2(y_z, y_y);
+          this.z = 0;
+        }
         break;
       case "XZY":
-				this.z = Math.asin(-clamp(y_x, -1, 1));
-				if (Math.abs(y_x) < 0.999999) {
-					this.x = Math.atan2(y_z, y_y);
-					this.y = Math.atan2(z_x, x_x);
-				} else {
-					this.x = Math.atan2(-z_y, z_z);
-					this.y = 0;
-				}
+        this.z = Math.asin(-clamp(y_x, -1, 1));
+        if (Math.abs(y_x) < 0.999999) {
+          this.x = Math.atan2(y_z, y_y);
+          this.y = Math.atan2(z_x, x_x);
+        } else {
+          this.x = Math.atan2(-z_y, z_z);
+          this.y = 0;
+        }
         break;
       case "YXZ":
-				this.x = Math.asin(-clamp(z_y, -1, 1));
-				if (Math.abs(z_y) < 0.999999) {
-					this.y = Math.atan2(z_x, z_z);
-					this.z = Math.atan2(x_y, y_y);
-				} else {
-					this.y = Math.atan2(-x_z, x_x);
-					this.z = 0;
-				}
+        this.x = Math.asin(-clamp(z_y, -1, 1));
+        if (Math.abs(z_y) < 0.999999) {
+          this.y = Math.atan2(z_x, z_z);
+          this.z = Math.atan2(x_y, y_y);
+        } else {
+          this.y = Math.atan2(-x_z, x_x);
+          this.z = 0;
+        }
         break;
       case "YZX":
-				this.z = Math.asin(clamp(x_y, -1, 1));
-				if (Math.abs(x_y) < 0.999999) {
-					this.x = Math.atan2(-z_y, y_y);
-					this.y = Math.atan2(-x_z, x_x);
-				} else {
-					this.x = 0;
-					this.y = Math.atan2(z_x, z_z);
-				}
+        this.z = Math.asin(clamp(x_y, -1, 1));
+        if (Math.abs(x_y) < 0.999999) {
+          this.x = Math.atan2(-z_y, y_y);
+          this.y = Math.atan2(-x_z, x_x);
+        } else {
+          this.x = 0;
+          this.y = Math.atan2(z_x, z_z);
+        }
         break;
       case "ZXY":
-				this.x = Math.asin(clamp(y_z, -1, 1));
-				if (Math.abs(y_z) < 0.999999) {
-					this.y = Math.atan2(-x_z, z_z);
-					this.z = Math.atan2(-y_x, y_y);
-				} else {
-					this.y = 0;
-					this.z = Math.atan2(x_y, x_x);
-				}
+        this.x = Math.asin(clamp(y_z, -1, 1));
+        if (Math.abs(y_z) < 0.999999) {
+          this.y = Math.atan2(-x_z, z_z);
+          this.z = Math.atan2(-y_x, y_y);
+        } else {
+          this.y = 0;
+          this.z = Math.atan2(x_y, x_x);
+        }
         break;
       case "ZYX":
-				this.y = Math.asin(-clamp(x_z, -1, 1));
-				if (Math.abs(x_z) < 0.999999) {
-					this.x = Math.atan2(y_z, z_z);
-					this.z = Math.atan2(x_y, x_x);
-				} else {
-					this.x = 0;
-					this.z = Math.atan2(-y_x, y_y);
-				}
+        this.y = Math.asin(-clamp(x_z, -1, 1));
+        if (Math.abs(x_z) < 0.999999) {
+          this.x = Math.atan2(y_z, z_z);
+          this.z = Math.atan2(x_y, x_x);
+        } else {
+          this.x = 0;
+          this.z = Math.atan2(-y_x, y_y);
+        }
         break;
     }
     this.order = order;

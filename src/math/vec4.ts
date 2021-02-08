@@ -164,14 +164,18 @@ export class Vec4 implements Vec {
       && +this.w.toFixed(precision) === +v.w.toFixed(precision);
   }  
 
-  toArray() {
+  toArray(): number[] {
     return [this.x, this.y, this.z, this.w];
   }
 
+  toTypedArray(): Float32Array {
+    return new Float32Array(this);
+  }
+
   *[Symbol.iterator](): Iterator<number> {
-      yield this.x;
-      yield this.y;
-      yield this.z;
-      yield this.w;
+    yield this.x;
+    yield this.y;
+    yield this.z;
+    yield this.w;
   }
 }

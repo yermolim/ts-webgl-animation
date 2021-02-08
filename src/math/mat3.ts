@@ -86,7 +86,7 @@ export class Mat3 implements Mat {
       m.x_x, m.y_x, m.z_x,
       m.x_y, m.y_y, m.z_y,
       m.x_z, m.y_z, m.z_z
-    )
+    );
     return res;
   }
   
@@ -114,7 +114,7 @@ export class Mat3 implements Mat {
     );
     // calculate determinant
     const det = m.x_x * mTemp.x_x + m.x_y * mTemp.x_y + m.x_z * mTemp.x_z;
-    const inversed = new Mat3()
+    const inversed = new Mat3();
     if (!det) {
       inversed.set(0,0,0,0,0,0,0,0,0);
     } else {
@@ -238,7 +238,7 @@ export class Mat3 implements Mat {
       temp.x_x, temp.y_x, temp.z_x,
       temp.x_y, temp.y_y, temp.z_y,
       temp.x_z, temp.y_z, temp.z_z
-    )
+    );
     return this;
   }
 
@@ -313,6 +313,10 @@ export class Mat3 implements Mat {
   toArray(): number[] {
     return this._matrix.slice();
   }
+
+  toTypedArray(): Float32Array {
+    return new Float32Array(this);
+  } 
 
   *[Symbol.iterator](): Iterator<number> {
     for (let i = 0; i < 16; i++) {      

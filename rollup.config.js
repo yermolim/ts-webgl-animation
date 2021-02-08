@@ -3,7 +3,7 @@ import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 
 export default [{
-  input: "tsc/dots-animation.js",
+  input: "tsc/src/dots-animation.js",
   output: [
     { file: "dist/index.esm.js", format: "es" },
     { file: "dist/index.esm.min.js", format: "es", plugins: [terser()] },

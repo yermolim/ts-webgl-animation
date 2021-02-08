@@ -576,8 +576,8 @@ class AnimationWebGl implements IAnimation {
 
     this._canvas.width = x;
     this._canvas.height = y;
-    this._resolution.set(x, y)
-  }
+    this._resolution.set(x, y);
+  };
 
   onPointerMove = (e: PointerEvent) => {
     const dpr = window.devicePixelRatio;
@@ -592,15 +592,15 @@ class AnimationWebGl implements IAnimation {
     const y = (e.clientY - yRelToDoc + window.pageYOffset) * dpr;
 
     this._pointerPosition.set(x, y);
-  }
+  };
 
   onPointerDown = (e: PointerEvent) => {
     this._pointerIsDown = true;
-  }
+  };
 
-  onPointerUp = (e: PointerEvent) => {
+  onPointerUp = () => {
     this._pointerIsDown = false;
-  }
+  };
   // #endregion
 
   private initCanvas() {   
@@ -628,6 +628,7 @@ class AnimationWebGl implements IAnimation {
     this._container.addEventListener("pointermove", this.onPointerMove);
     window.addEventListener("pointerdown", this.onPointerDown);
     window.addEventListener("pointerup", this.onPointerUp);
+    window.addEventListener("blur", this.onPointerUp);
   }
 
   private removeEventListeners() {
@@ -638,6 +639,7 @@ class AnimationWebGl implements IAnimation {
     this._container.removeEventListener("pointermove", this.onPointerMove);
     window.removeEventListener("pointerdown", this.onPointerDown);
     window.removeEventListener("pointerup", this.onPointerUp);
+    window.removeEventListener("blur", this.onPointerUp);
   }
 }
 
@@ -653,7 +655,7 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
   `;
 
   private readonly _fragmentShader = `
-    #pragma vscode_glsllint_stage : frag
+    #pragma vscode_glsllint_stage : frag    
 
     precision highp float;
 

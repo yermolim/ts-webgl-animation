@@ -216,9 +216,13 @@ export class Vec3 implements Vec {
       && +this.z.toFixed(precision) === +v.z.toFixed(precision);
   }
 
-  toArray() {
+  toArray(): number[] {
     return [this.x, this.y, this.z];
-  }  
+  } 
+
+  toTypedArray(): Float32Array {
+    return new Float32Array(this);
+  } 
 
   *[Symbol.iterator](): Iterator<number> {
     yield this.x;

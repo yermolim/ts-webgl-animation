@@ -137,13 +137,13 @@ export class Vec2 implements Vec {
     const s = Math.sin(theta);
     const c = Math.cos(theta);
 
-		const x = this.x - center.x;
-		const y = this.y - center.y;
+    const x = this.x - center.x;
+    const y = this.y - center.y;
 
-		this.x = x * c - y * s + center.x;
-		this.y = x * s + y * c + center.y;
+    this.x = x * c - y * s + center.x;
+    this.y = x * s + y * c + center.y;
 
-		return this;
+    return this;
   }
 
   equals(v: Vec2, precision = 6): boolean {
@@ -151,9 +151,13 @@ export class Vec2 implements Vec {
       && +this.y.toFixed(precision) === +v.y.toFixed(precision);
   }  
 
-  toArray() {
+  toArray(): number[] {
     return [this.x, this.y];
   }
+
+  toTypedArray(): Float32Array {
+    return new Float32Array(this);
+  } 
 
   *[Symbol.iterator](): Iterator<number> {
     yield this.x;
