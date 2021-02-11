@@ -9,6 +9,9 @@ export class AnimationProgram {
   private readonly _gl: WebGLRenderingContext;
   private readonly _program: WebGLProgram;
 
+  private readonly _vertexShader: WebGLShader;
+  private readonly _fragmentShader: WebGLShader;
+
   private readonly _attributes = new Map<string, Attribute>();
   private readonly _uniforms = new Map<string, Uniform>();
   
@@ -16,25 +19,23 @@ export class AnimationProgram {
     vertexShaderSource: string, fragmentShaderSource: string) {
 
     const vertexShader = AnimationProgram.loadShader(gl, shaderTypes.VERTEX_SHADER, vertexShaderSource);
-    const fragmentShader = AnimationProgram.loadShader(gl, shaderTypes.VERTEX_SHADER, fragmentShaderSource);
+    const fragmentShader = AnimationProgram.loadShader(gl, shaderTypes.FRAGMENT_SHADER, fragmentShaderSource);
 
     const program = gl.createProgram();
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
     // TODO: bind attribute locations and varyings
     
+    this._gl = gl;
+    this._program = program;
+    
     gl.linkProgram(program);
     const result = gl.getProgramParameter(program, gl.LINK_STATUS);    
     if (!result) {
       const log = gl.getProgramInfoLog(program);
-      gl.deleteProgram(program);
-      gl.deleteShader(vertexShader);
-      gl.deleteShader(fragmentShader);
+      this.destroy();
       throw new Error("Error while linking program: " + log);
     }
-
-    this._gl = gl;
-    this._program = program;
   }  
 
   private static loadShader(gl: WebGLRenderingContext, 
@@ -53,17 +54,34 @@ export class AnimationProgram {
     return shader;  
   } 
 
-  render() {
-    this._gl.cullFace(this._gl.BACK);
-    this._gl.enable(this._gl.CULL_FACE);
-    this._gl.enable(this._gl.DEPTH_TEST);
-    this._gl.clearColor(0, 0, 0, 0);
-    this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
+  render(offset: number, count: number, clear = true) {
+    if (clear) {
+      this.clear();
+    }
 
     this._gl.useProgram(this._program);
 
     this._attributes.forEach(x => x.set());
     this._uniforms.forEach(x => x.set());
+
+    this._gl.drawArrays(this._gl.TRIANGLES, offset * 3, count * 3);
+  }
+
+  clear() {    
+    this._gl.cullFace(this._gl.BACK);
+    this._gl.enable(this._gl.CULL_FACE);
+    this._gl.enable(this._gl.DEPTH_TEST);
+    this._gl.clearColor(0, 0, 0, 0);
+    this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
+  }
+
+  destroy() {    
+    this.clearUniforms();
+    this.clearAttributes();
+
+    this._gl.deleteProgram(this._program);
+    this._gl.deleteShader(this._vertexShader);
+    this._gl.deleteShader(this._fragmentShader);
   }
   
   //#region attributes
@@ -111,6 +129,8 @@ export class AnimationProgram {
   //#endregion
     
   //#region uniforms
+
+  //#region bool
   setBoolUniform(name: string, value: boolean) {
     const uniform = new UniformIntInfo(this._gl, this._program, 
       name, numberTypes.INT, value ? 1 : 0);
@@ -129,7 +149,9 @@ export class AnimationProgram {
       name, numberTypes.BOOL, values);
     this.setUniform(uniform);
   }
+  //#endregion
 
+  //#region int
   setIntUniform(name: string, value: number) {
     const uniform = new UniformIntInfo(this._gl, this._program, 
       name, numberTypes.INT, value);
@@ -168,7 +190,9 @@ export class AnimationProgram {
       name, type, data.toIntArray());
     this.setUniform(uniform);
   }
+  //#endregion
   
+  //#region float
   setFloatUniform(name: string, value: number) {
     const uniform = new UniformFloatInfo(this._gl, this._program, 
       name, value);
@@ -231,13 +255,28 @@ export class AnimationProgram {
       name, type, data.toFloatArray());
     this.setUniform(uniform);
   }
+  //#endregion
+
+  //#region texture
+  setTexture() {
+    // TODO: implement
+  }
+
+  setTextureArray() {
+    // TODO: implement
+  }
+  //#endregion
 
   deleteUniform(name: string) {
-    this._uniforms.delete(name);    
+    const uniform = this._uniforms.get(name);
+    if (uniform) {
+      uniform.destroy();
+      this._uniforms.delete(name);
+    }    
   }
 
   clearUniforms() {
-    this._uniforms.clear();
+    this._uniforms.forEach((v, k) => this.deleteUniform(k));
   }
   //#endregion
 

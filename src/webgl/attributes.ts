@@ -115,7 +115,7 @@ export class ConstantInfo extends Attribute {
   }
 
   destroy() {
-
+    
   }
 }
 
@@ -158,6 +158,7 @@ export class BufferInfo<T extends TypedArray> extends Attribute {
     this._type = type;
 
     this._buffer = gl.createBuffer();
+    this._gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);  
     gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
 
     let minStride = 0;

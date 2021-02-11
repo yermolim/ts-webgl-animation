@@ -5,6 +5,7 @@ import { IPositionObject,
 import { getRandomInt, getRandomFloat, getDistance2D } from "./math/common";
 import { Vec2 } from "./math/vec2";
 import { DotAnimationOptions } from "./options";
+import { AnimationProgram } from "./webgl/program";
 
 function drawCircle(ctx: CanvasRenderingContext2D,
   x: number, y: number, r: number, colorS: string | null, colorF: string | null): void {
@@ -507,7 +508,9 @@ class AnimationWebGl implements IAnimation {
   private _lastFramePreparationTime = 0;
   private _lastFrameRenderTime = 0;
 
-  constructor(container: HTMLElement, options: IAnimationOptions, controlType: IWebGlAnimationControlType) {  
+  constructor(container: HTMLElement, options: IAnimationOptions, 
+    controlType: IWebGlAnimationControlType) {  
+
     this._options = options;
     this._container = container;
     this._controlType = controlType;
@@ -655,40 +658,60 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
   `;
 
   private readonly _fragmentShader = `
-    #pragma vscode_glsllint_stage : frag    
+    #pragma vscode_glsllint_stage : frag  
 
-    precision highp float;
+    precision mediump float;
 
     void main() {
-      gl_FragColor = vec4(1, 0, 0, 1);
+      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
     }
   `;
   
   private _options: IAnimationOptions;
   private _gl: WebGLRenderingContext;
 
+  private _program: AnimationProgram;
+  
+  private _tempData: Float32Array;
+
   constructor(gl: WebGLRenderingContext, options: IAnimationOptions) {
     this._options = options;
     this._gl = gl;
+
+    // restore context if lost
+    if (this._gl.isContextLost()) {
+      this._gl.getExtension("WEBGL_lose_context").restoreContext();
+    }
+    this._program = new AnimationProgram(gl, this._vertexShader, this._fragmentShader);
+
+    // set constant attributes if not set (first time)
+    // DEBUG
+    this._tempData = new Float32Array([0.1, 0.5, 0, 1, 0.3, 0.1, 0, 1, 0.3, 0.5, 0, 1]);
+    this._program.setBufferAttribute("position", this._tempData, 4);
   }
 
   prepareNextFrame(resolution: Vec2, pointerPosition: Vec2, pointerDown: boolean, elapsedTime: number) {
     this.resize(resolution);
 
-    
+    // calc uniforms
+    // set uniforms
+
+    // DEBUG
   }
 
   renderFrame() {
-    
+    // DEBUG
+    this._program.render(0, 1);
   }
 
   clear() {
-    this._gl.clearColor(0, 0, 0, 0);
-    this._gl.clear(this._gl.COLOR_BUFFER_BIT);
+    this._program.clear();
   }
 
   destroy() {
-    // TODO: lose context and delete all gl data
+    this._program.destroy();
+    // force loosing context
+    this._gl.getExtension("WEBGL_lose_context").loseContext();
   }
 
   private resize(resolution: Vec2) {

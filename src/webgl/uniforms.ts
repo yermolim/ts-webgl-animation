@@ -27,6 +27,8 @@ export abstract class Uniform {
   } 
   
   abstract set(): void;
+  
+  abstract destroy(): void; 
 }
 
 export class UniformIntInfo extends Uniform { 
@@ -47,6 +49,10 @@ export class UniformIntInfo extends Uniform {
   set() {
     this._gl.uniform1i(this._location, this._value);
   }
+
+  destroy() {
+
+  }
 }
 
 export class UniformFloatInfo extends Uniform { 
@@ -64,6 +70,10 @@ export class UniformFloatInfo extends Uniform {
 
   set() {
     this._gl.uniform1f(this._location, this._value);
+  }
+  
+  destroy() {
+    
   }
 }
 
@@ -131,6 +141,10 @@ export class UniformIntArrayInfo extends Uniform {
       default:
         throw new Error(`Uniforms of type '${this._type}' are not supported by UniformIntArrayInfo`);
     }
+  }
+
+  destroy() {
+    
   }
 }
 
@@ -211,6 +225,10 @@ export class UniformFloatArrayInfo extends Uniform {
         throw new Error(`Uniforms of type '${this._type}' are not supported by UniformFloatArrayInfo`);
     }
   }
+  
+  destroy() {
+    
+  }
 }
 
 export abstract class Texture extends Uniform {
@@ -277,6 +295,10 @@ export class TextureInfo extends Texture {
     this._gl.activeTexture(textureTypes.TEXTURE0 + this._unit);
     this._gl.bindTexture(this._target, this.texture);
   }
+  
+  destroy() {
+    this._gl.deleteTexture(this.texture);
+  }
 }
 
 export class TextureArrayInfo extends Texture {
@@ -308,5 +330,9 @@ export class TextureArrayInfo extends Texture {
       // gl.bindSampler(unit, sampler);
       //#endregion
     });
+  }
+ 
+  destroy() {
+    this.textures.forEach(x => this._gl.deleteTexture(x));
   }
 }

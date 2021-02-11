@@ -121,6 +121,12 @@ class Vec2 {
     toArray() {
         return [this.x, this.y];
     }
+    toIntArray() {
+        return new Int32Array(this);
+    }
+    toFloatArray() {
+        return new Float32Array(this);
+    }
     *[Symbol.iterator]() {
         yield this.x;
         yield this.y;
@@ -171,6 +177,559 @@ class DotAnimationOptions {
     }
 }
 
+const shaderTypes = {
+    FRAGMENT_SHADER: 0x8b30,
+    VERTEX_SHADER: 0x8b31,
+};
+const bufferTypes = {
+    ARRAY_BUFFER: 0x8892,
+    ELEMENT_ARRAY_BUFFER: 0x8893,
+    UNIFORM_BUFFER: 0x8a11,
+    TRANSFORM_FEEDBACK_BUFFER: 0x8c8e,
+};
+const numberTypes = {
+    BYTE: 0x1400,
+    UNSIGNED_BYTE: 0x1401,
+    SHORT: 0x1402,
+    UNSIGNED_SHORT: 0x1403,
+    INT: 0x1404,
+    UNSIGNED_INT: 0x1405,
+    FLOAT: 0x1406,
+    BOOL: 0x8B56,
+};
+const numberSizes = {
+    0x1400: 1,
+    0x1401: 1,
+    0x1402: 2,
+    0x1403: 2,
+    0x1404: 4,
+    0x1405: 4,
+    0x1406: 4,
+};
+const uniformFloatTypes = {
+    FLOAT: numberTypes.FLOAT,
+    FLOAT_VEC2: 0x8B50,
+    FLOAT_VEC3: 0x8B51,
+    FLOAT_VEC4: 0x8B52,
+    FLOAT_MAT2: 0x8B5A,
+    FLOAT_MAT3: 0x8B5B,
+    FLOAT_MAT4: 0x8B5C,
+};
+const uniformIntTypes = {
+    INT: numberTypes.INT,
+    BOOL: numberTypes.BOOL,
+    INT_VEC2: 0x8B53,
+    INT_VEC3: 0x8B54,
+    INT_VEC4: 0x8B55,
+    BOOL_VEC2: 0x8B57,
+    BOOL_VEC3: 0x8B58,
+    BOOL_VEC4: 0x8B59,
+};
+
+class Attribute {
+    constructor(gl, program, name) {
+        this._gl = gl;
+        this._location = gl.getAttribLocation(program, name);
+        this._name = name;
+    }
+    get name() {
+        return this._name;
+    }
+    get type() {
+        return this._type;
+    }
+}
+class ConstantInfo extends Attribute {
+    constructor(gl, program, name, type, size, ...values) {
+        super(gl, program, name);
+        this._type = type || numberTypes.FLOAT;
+        this.size = size || 1;
+        if (values?.length) {
+            this.x = values[0] || 0;
+            this.y = values[1] || 0;
+            this.z = values[2] || 0;
+            this.w = values[3] || 0;
+        }
+        else {
+            this.x = 0;
+            this.y = 0;
+            this.z = 0;
+            this.w = 0;
+        }
+    }
+    set() {
+        this._gl.disableVertexAttribArray(this._location);
+        switch (this._type) {
+            case numberTypes.FLOAT:
+                switch (this.size) {
+                    case 1:
+                        this._gl.vertexAttrib1f(this._location, this.x);
+                        break;
+                    case 2:
+                        this._gl.vertexAttrib2f(this._location, this.x, this.y);
+                        break;
+                    case 3:
+                        this._gl.vertexAttrib3f(this._location, this.x, this.y, this.z);
+                        break;
+                    case 4:
+                        this._gl.vertexAttrib4f(this._location, this.x, this.y, this.z, this.w);
+                        break;
+                    default:
+                        throw new Error("Incorrect constant value length");
+                }
+                break;
+            default:
+                throw new Error("Unsupported constant attribute type");
+        }
+    }
+    destroy() {
+    }
+}
+class BufferInfo extends Attribute {
+    constructor(gl, program, name, data, vectorSize = 1, vectorNumber = 1, stride = 0, offset = 0, normalize = false) {
+        super(gl, program, name);
+        this.vectorSize = vectorSize;
+        this.vectorNumber = vectorNumber;
+        this.stride = stride;
+        this.offset = offset;
+        this.normalize = normalize;
+        let type;
+        if (data instanceof Int8Array) {
+            type = numberTypes.BYTE;
+        }
+        else if (data instanceof Uint8Array
+            || data instanceof Uint8ClampedArray) {
+            type = numberTypes.UNSIGNED_BYTE;
+        }
+        else if (data instanceof Int16Array) {
+            type = numberTypes.SHORT;
+        }
+        else if (data instanceof Uint16Array) {
+            type = numberTypes.UNSIGNED_SHORT;
+        }
+        else if (data instanceof Int32Array) {
+            type = numberTypes.INT;
+        }
+        else if (data instanceof Uint32Array) {
+            type = numberTypes.UNSIGNED_INT;
+        }
+        else if (data instanceof Float32Array) {
+            type = numberTypes.FLOAT;
+        }
+        else {
+            throw new Error("Unsupported data array type");
+        }
+        this._type = type;
+        this._buffer = gl.createBuffer();
+        this._gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+        let minStride = 0;
+        if (vectorNumber !== 1) {
+            minStride = vectorSize * vectorNumber * numberSizes[type];
+            this.vectorOffset = this.stride / vectorNumber;
+        }
+        else {
+            this.vectorOffset = 0;
+        }
+        if (stride < minStride) {
+            this.stride = minStride;
+        }
+        else if (stride > 255) {
+            this.stride = 255;
+        }
+    }
+    set() {
+        this._gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);
+        for (let i = 0, j = this._location; i < this.vectorNumber; i++, j++) {
+            this._gl.enableVertexAttribArray(j);
+            this._gl.vertexAttribPointer(j, this.vectorSize, this._type, this.normalize, this.stride, this.offset + i * this.vectorOffset);
+        }
+    }
+    destroy() {
+        this._gl.deleteBuffer(this._buffer);
+    }
+}
+
+class Uniform {
+    constructor(gl, program, name) {
+        this._gl = gl;
+        this._location = gl.getUniformLocation(program, this._name);
+        this._name = name;
+    }
+    get name() {
+        return this._name;
+    }
+    get type() {
+        return this._type;
+    }
+    setSampleArray(target, unit, textures) {
+    }
+}
+class UniformIntInfo extends Uniform {
+    constructor(gl, program, name, type, value) {
+        super(gl, program, name);
+        this._value = value;
+        this._type = type;
+    }
+    set() {
+        this._gl.uniform1i(this._location, this._value);
+    }
+    destroy() {
+    }
+}
+class UniformFloatInfo extends Uniform {
+    constructor(gl, program, name, value) {
+        super(gl, program, name);
+        this._type = 5126;
+        this._value = value;
+    }
+    set() {
+        this._gl.uniform1f(this._location, this._value);
+    }
+    destroy() {
+    }
+}
+class UniformIntArrayInfo extends Uniform {
+    constructor(gl, program, name, type, values) {
+        super(gl, program, name);
+        this._values = values;
+        switch (type) {
+            case numberTypes.INT:
+            case numberTypes.BOOL:
+                break;
+            case uniformIntTypes.INT_VEC2:
+            case uniformIntTypes.BOOL_VEC2:
+                if (values.length !== 2) {
+                    throw new Error("Wrong values array length for a defined type");
+                }
+                break;
+            case uniformIntTypes.INT_VEC3:
+            case uniformIntTypes.BOOL_VEC3:
+                if (values.length !== 3) {
+                    throw new Error("Wrong values array length for a defined type");
+                }
+                break;
+            case uniformIntTypes.INT_VEC4:
+            case uniformIntTypes.BOOL_VEC4:
+                if (values.length !== 4) {
+                    throw new Error("Wrong values array length for a defined type");
+                }
+                break;
+            default:
+                throw new Error(`Uniforms of type '${this._type}' are not supported by UniformIntArrayInfo`);
+        }
+        this._type = type;
+    }
+    set() {
+        switch (this._type) {
+            case numberTypes.INT:
+            case numberTypes.BOOL:
+                this._gl.uniform1iv(this._location, this._values);
+                break;
+            case uniformIntTypes.INT_VEC2:
+            case uniformIntTypes.BOOL_VEC2:
+                this._gl.uniform2iv(this._location, this._values);
+                break;
+            case uniformIntTypes.INT_VEC3:
+            case uniformIntTypes.BOOL_VEC3:
+                this._gl.uniform3iv(this._location, this._values);
+                break;
+            case uniformIntTypes.INT_VEC4:
+            case uniformIntTypes.BOOL_VEC4:
+                this._gl.uniform4iv(this._location, this._values);
+                break;
+            default:
+                throw new Error(`Uniforms of type '${this._type}' are not supported by UniformIntArrayInfo`);
+        }
+    }
+    destroy() {
+    }
+}
+class UniformFloatArrayInfo extends Uniform {
+    constructor(gl, program, name, type, values) {
+        super(gl, program, name);
+        this._values = values;
+        switch (type) {
+            case numberTypes.FLOAT:
+                break;
+            case uniformFloatTypes.FLOAT_VEC2:
+                if (values.length !== 2) {
+                    throw new Error("Wrong values array length for a defined type");
+                }
+                break;
+            case uniformFloatTypes.FLOAT_VEC3:
+                if (values.length !== 3) {
+                    throw new Error("Wrong values array length for a defined type");
+                }
+                break;
+            case uniformFloatTypes.FLOAT_VEC4:
+            case uniformFloatTypes.FLOAT_MAT2:
+                if (values.length !== 4) {
+                    throw new Error("Wrong values array length for a defined type");
+                }
+                break;
+            case uniformFloatTypes.FLOAT_MAT3:
+                if (values.length !== 9) {
+                    throw new Error("Wrong values array length for a defined type");
+                }
+                break;
+            case uniformFloatTypes.FLOAT_MAT4:
+                if (values.length !== 16) {
+                    throw new Error("Wrong values array length for a defined type");
+                }
+                break;
+            default:
+                throw new Error(`Uniforms of type '${this._type}' are not supported by UniformFloatArrayInfo`);
+        }
+        this._type = type;
+    }
+    set() {
+        switch (this._type) {
+            case numberTypes.FLOAT:
+                this._gl.uniform1fv(this._location, this._values);
+                break;
+            case uniformFloatTypes.FLOAT_VEC2:
+                this._gl.uniform2fv(this._location, this._values);
+                break;
+            case uniformFloatTypes.FLOAT_VEC3:
+                this._gl.uniform3fv(this._location, this._values);
+                break;
+            case uniformFloatTypes.FLOAT_VEC4:
+                this._gl.uniform4fv(this._location, this._values);
+                break;
+            case uniformFloatTypes.FLOAT_MAT2:
+                this._gl.uniformMatrix2fv(this._location, false, this._values);
+                break;
+            case uniformFloatTypes.FLOAT_MAT3:
+                this._gl.uniformMatrix3fv(this._location, false, this._values);
+                break;
+            case uniformFloatTypes.FLOAT_MAT4:
+                this._gl.uniformMatrix4fv(this._location, false, this._values);
+                break;
+            default:
+                throw new Error(`Uniforms of type '${this._type}' are not supported by UniformFloatArrayInfo`);
+        }
+    }
+    destroy() {
+    }
+}
+
+class AnimationProgram {
+    constructor(gl, vertexShaderSource, fragmentShaderSource) {
+        this._attributes = new Map();
+        this._uniforms = new Map();
+        const vertexShader = AnimationProgram.loadShader(gl, shaderTypes.VERTEX_SHADER, vertexShaderSource);
+        const fragmentShader = AnimationProgram.loadShader(gl, shaderTypes.FRAGMENT_SHADER, fragmentShaderSource);
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        this._gl = gl;
+        this._program = program;
+        gl.linkProgram(program);
+        const result = gl.getProgramParameter(program, gl.LINK_STATUS);
+        if (!result) {
+            const log = gl.getProgramInfoLog(program);
+            this.destroy();
+            throw new Error("Error while linking program: " + log);
+        }
+    }
+    static loadShader(gl, shaderType, shaderSource) {
+        const shader = gl.createShader(shaderType);
+        gl.shaderSource(shader, shaderSource);
+        gl.compileShader(shader);
+        const result = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+        if (!result) {
+            const log = gl.getShaderInfoLog(shader);
+            gl.deleteShader(shader);
+            throw new Error("Error while compiling shader: " + log);
+        }
+        return shader;
+    }
+    render(offset, count, clear = true) {
+        if (clear) {
+            this.clear();
+        }
+        this._gl.useProgram(this._program);
+        this._attributes.forEach(x => x.set());
+        this._uniforms.forEach(x => x.set());
+        this._gl.drawArrays(this._gl.TRIANGLES, offset * 3, count * 3);
+    }
+    clear() {
+        this._gl.cullFace(this._gl.BACK);
+        this._gl.enable(this._gl.CULL_FACE);
+        this._gl.enable(this._gl.DEPTH_TEST);
+        this._gl.clearColor(0, 0, 0, 0);
+        this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
+    }
+    destroy() {
+        this.clearUniforms();
+        this.clearAttributes();
+        this._gl.deleteProgram(this._program);
+        this._gl.deleteShader(this._vertexShader);
+        this._gl.deleteShader(this._fragmentShader);
+    }
+    setConstantScalarAttribute(name, s) {
+        if (isNaN(s)) {
+            return;
+        }
+        const constant = new ConstantInfo(this._gl, this._program, name, numberTypes.FLOAT, 1, s);
+        this.setAttribute(constant);
+    }
+    setConstantVecAttribute(name, v) {
+        if (!v) {
+            return;
+        }
+        const values = v.toFloatArray();
+        const constant = new ConstantInfo(this._gl, this._program, name, numberTypes.FLOAT, values.length, ...values);
+        this.setAttribute(constant);
+    }
+    setBufferAttribute(name, data, vectorSize = 1, vectorNumber = 1, stride = 0, offset = 0, normalize = false) {
+        if (!data?.length) {
+            return;
+        }
+        const buffer = new BufferInfo(this._gl, this._program, name, data, vectorSize, vectorNumber, stride, offset, normalize);
+        this.setAttribute(buffer);
+    }
+    deleteAttribute(name) {
+        const attribute = this._attributes.get(name);
+        if (attribute) {
+            attribute.destroy();
+            this._attributes.delete(name);
+        }
+    }
+    clearAttributes() {
+        this._attributes.forEach((v, k) => this.deleteAttribute(k));
+    }
+    setBoolUniform(name, value) {
+        const uniform = new UniformIntInfo(this._gl, this._program, name, numberTypes.INT, value ? 1 : 0);
+        this.setUniform(uniform);
+    }
+    setBoolArrayUniform(name, data) {
+        if (!data?.length) {
+            return;
+        }
+        const values = new Int32Array(data.length);
+        for (let i = 0; i < data.length; i++) {
+            values[i] = data[i] ? 1 : 0;
+        }
+        const uniform = new UniformIntArrayInfo(this._gl, this._program, name, numberTypes.BOOL, values);
+        this.setUniform(uniform);
+    }
+    setIntUniform(name, value) {
+        const uniform = new UniformIntInfo(this._gl, this._program, name, numberTypes.INT, value);
+        this.setUniform(uniform);
+    }
+    setIntArrayUniform(name, data) {
+        if (!data?.length) {
+            return;
+        }
+        const uniform = new UniformIntArrayInfo(this._gl, this._program, name, numberTypes.INT, data);
+        this.setUniform(uniform);
+    }
+    setIntVecUniform(name, data) {
+        if (!data) {
+            return;
+        }
+        let type;
+        switch (data.length) {
+            case 2:
+                type = uniformIntTypes.INT_VEC2;
+                break;
+            case 3:
+                type = uniformIntTypes.INT_VEC3;
+                break;
+            case 4:
+                type = uniformIntTypes.INT_VEC4;
+                break;
+            default:
+                throw new Error("Incorrect vector length");
+        }
+        const uniform = new UniformIntArrayInfo(this._gl, this._program, name, type, data.toIntArray());
+        this.setUniform(uniform);
+    }
+    setFloatUniform(name, value) {
+        const uniform = new UniformFloatInfo(this._gl, this._program, name, value);
+        this.setUniform(uniform);
+    }
+    setFloatArrayUniform(name, data) {
+        if (!data?.length) {
+            return;
+        }
+        const uniform = new UniformFloatArrayInfo(this._gl, this._program, name, numberTypes.FLOAT, data);
+        this.setUniform(uniform);
+    }
+    setFloatVecUniform(name, data) {
+        if (!data) {
+            return;
+        }
+        let type;
+        switch (data.length) {
+            case 2:
+                type = uniformFloatTypes.FLOAT_VEC2;
+                break;
+            case 3:
+                type = uniformFloatTypes.FLOAT_VEC3;
+                break;
+            case 4:
+                type = uniformFloatTypes.FLOAT_VEC4;
+                break;
+            default:
+                throw new Error("Incorrect vector length");
+        }
+        const uniform = new UniformFloatArrayInfo(this._gl, this._program, name, type, data.toFloatArray());
+        this.setUniform(uniform);
+    }
+    setFloatMatUniform(name, data) {
+        if (!data) {
+            return;
+        }
+        let type;
+        switch (data.length) {
+            case 4:
+                type = uniformFloatTypes.FLOAT_MAT2;
+                break;
+            case 9:
+                type = uniformFloatTypes.FLOAT_MAT3;
+                break;
+            case 16:
+                type = uniformFloatTypes.FLOAT_MAT4;
+                break;
+            default:
+                throw new Error("Incorrect matrix length");
+        }
+        const uniform = new UniformFloatArrayInfo(this._gl, this._program, name, type, data.toFloatArray());
+        this.setUniform(uniform);
+    }
+    setTexture() {
+    }
+    setTextureArray() {
+    }
+    deleteUniform(name) {
+        const uniform = this._uniforms.get(name);
+        if (uniform) {
+            uniform.destroy();
+            this._uniforms.delete(name);
+        }
+    }
+    clearUniforms() {
+        this._uniforms.forEach((v, k) => this.deleteUniform(k));
+    }
+    setAttribute(attr) {
+        const oldAttr = this._attributes.get(attr.name);
+        if (oldAttr) {
+            oldAttr.destroy();
+        }
+        this._attributes.set(attr.name, attr);
+    }
+    setUniform(uniform) {
+        const oldUniform = this._attributes.get(uniform.name);
+        if (oldUniform) {
+            oldUniform.destroy();
+        }
+        this._uniforms.set(uniform.name, uniform);
+    }
+}
+
 class AnimationWebGl {
     constructor(container, options, controlType) {
         this._resolution = new Vec2();
@@ -203,7 +762,7 @@ class AnimationWebGl {
         this.onPointerDown = (e) => {
             this._pointerIsDown = true;
         };
-        this.onPointerUp = (e) => {
+        this.onPointerUp = () => {
             this._pointerIsDown = false;
         };
         this._options = options;
@@ -229,6 +788,7 @@ class AnimationWebGl {
             const elapsedTime = framePreparationStart - this._animationStartTimeStamp;
             this._control.prepareNextFrame(this._resolution, this._pointerPosition, this._pointerIsDown, elapsedTime);
             this._lastFramePreparationTime = performance.now() - framePreparationStart;
+            console.log(this._lastFramePreparationTime);
             requestAnimationFrame(() => {
                 const frameRenderStart = performance.now();
                 this._control.renderFrame();
@@ -270,6 +830,7 @@ class AnimationWebGl {
         this._container.addEventListener("pointermove", this.onPointerMove);
         window.addEventListener("pointerdown", this.onPointerDown);
         window.addEventListener("pointerup", this.onPointerUp);
+        window.addEventListener("blur", this.onPointerUp);
     }
     removeEventListeners() {
         this._resizeObserver.unobserve(this._container);
@@ -278,6 +839,7 @@ class AnimationWebGl {
         this._container.removeEventListener("pointermove", this.onPointerMove);
         window.removeEventListener("pointerdown", this.onPointerDown);
         window.removeEventListener("pointerup", this.onPointerUp);
+        window.removeEventListener("blur", this.onPointerUp);
     }
 }
 class DotWebGlAnimationControl {
@@ -292,27 +854,35 @@ class DotWebGlAnimationControl {
     }
   `;
         this._fragmentShader = `
-    #pragma vscode_glsllint_stage : frag
+    #pragma vscode_glsllint_stage : frag  
 
-    precision highp float;
+    precision mediump float;
 
     void main() {
-      gl_FragColor = vec4(1, 0, 0, 1);
+      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
     }
   `;
         this._options = options;
         this._gl = gl;
+        if (this._gl.isContextLost()) {
+            this._gl.getExtension("WEBGL_lose_context").restoreContext();
+        }
+        this._program = new AnimationProgram(gl, this._vertexShader, this._fragmentShader);
+        this._tempData = new Float32Array([0.1, 0.5, 0, 1, 0.3, 0.1, 0, 1, 0.3, 0.5, 0, 1]);
+        this._program.setBufferAttribute("position", this._tempData, 4);
     }
     prepareNextFrame(resolution, pointerPosition, pointerDown, elapsedTime) {
         this.resize(resolution);
     }
     renderFrame() {
+        this._program.render(0, 1);
     }
     clear() {
-        this._gl.clearColor(0, 0, 0, 0);
-        this._gl.clear(this._gl.COLOR_BUFFER_BIT);
+        this._program.clear();
     }
     destroy() {
+        this._program.destroy();
+        this._gl.getExtension("WEBGL_lose_context").loseContext();
     }
     resize(resolution) {
         if (this._gl.canvas.width !== resolution.x) {

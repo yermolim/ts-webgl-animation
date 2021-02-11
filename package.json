@@ -9,8 +9,9 @@
     "test": "karma start",
     "buildts": "tsc",
     "buildru": "rollup -c",
-    "build": "tsc && rollup -c && dts-bundle-generator -o dist/index.d.ts src/dots-animation.ts",
-    "start": "npm run build && copyfiles -f ./dist/index.umd.min.js ./demo && lite-server -c ls-config.json",
+    "builddts": "tsc && rollup -c && dts-bundle-generator -o dist/index.d.ts src/dots-animation.ts",
+    "build": "npm run builddts && copyfiles -f ./dist/index.umd.js ./demo",
+    "start": "npm run build && lite-server -c ls-config.json",
     "mpublish": "npm version minor && npm publish",
     "ppublish": "npm version patch && npm publish"
   },
