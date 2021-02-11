@@ -31,6 +31,7 @@ export const numberTypes = {
   INT: 0x1404,
   UNSIGNED_INT: 0x1405,
   FLOAT: 0x1406,
+  BOOL: 0x8B56,	
 } as const;
 export type NumberType = typeof numberTypes[keyof typeof numberTypes];
 export const numberSizes = {
@@ -43,22 +44,31 @@ export const numberSizes = {
   0x1406: 4,
 } as const;
 
-export const uniformTypes = {
+export const uniformFloatTypes = {
+  FLOAT: numberTypes.FLOAT,
   FLOAT_VEC2: 0x8B50,	
   FLOAT_VEC3: 0x8B51,	
   FLOAT_VEC4: 0x8B52,	
-  INT_VEC2: 0x8B53,	
-  INT_VEC3: 0x8B54,	
-  INT_VEC4: 0x8B55,	
-  BOOL: 0x8B56,	
-  BOOL_VEC2: 0x8B57,	
-  BOOL_VEC3: 0x8B58,	
-  BOOL_VEC4: 0x8B59,	
   FLOAT_MAT2: 0x8B5A,	
   FLOAT_MAT3: 0x8B5B,	
   FLOAT_MAT4: 0x8B5C,	
 } as const;
-export type UniformType = (typeof uniformTypes[keyof typeof uniformTypes]);
+export type UniformFloatType = (typeof uniformFloatTypes[keyof typeof uniformFloatTypes]);
+
+export const uniformIntTypes = {
+  INT: numberTypes.INT,
+  BOOL: numberTypes.BOOL,
+  INT_VEC2: 0x8B53,	
+  INT_VEC3: 0x8B54,	
+  INT_VEC4: 0x8B55,	
+  BOOL_VEC2: 0x8B57,	
+  BOOL_VEC3: 0x8B58,	
+  BOOL_VEC4: 0x8B59,
+} as const;
+export type UniformIntType = (typeof uniformIntTypes[keyof typeof uniformIntTypes]);
+
+export type UniformType = UniformFloatType | UniformIntType;
+
 export const uniformSizes = {
   0x8B50: numberSizes[numberTypes.FLOAT] * 2,
   0x8B51: numberSizes[numberTypes.FLOAT] * 3,

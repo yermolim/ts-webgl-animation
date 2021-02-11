@@ -155,7 +155,11 @@ export class Vec2 implements Vec {
     return [this.x, this.y];
   }
 
-  toTypedArray(): Float32Array {
+  toIntArray(): Int32Array {
+    return new Int32Array(this);
+  } 
+  
+  toFloatArray(): Float32Array {
     return new Float32Array(this);
   } 
 

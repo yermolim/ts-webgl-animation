@@ -314,7 +314,11 @@ export class Mat3 implements Mat {
     return this._matrix.slice();
   }
 
-  toTypedArray(): Float32Array {
+  toIntArray(): Int32Array {
+    return new Int32Array(this);
+  } 
+
+  toFloatArray(): Float32Array {
     return new Float32Array(this);
   } 
 

@@ -487,8 +487,12 @@ export class Mat4 implements Mat {
   toArray(): number[] {
     return this._matrix.slice();
   }
+  
+  toIntArray(): Int32Array {
+    return new Int32Array(this);
+  } 
 
-  toTypedArray(): Float32Array {
+  toFloatArray(): Float32Array {
     return new Float32Array(this);
   } 
 

@@ -219,8 +219,12 @@ export class Vec3 implements Vec {
   toArray(): number[] {
     return [this.x, this.y, this.z];
   } 
+  
+  toIntArray(): Int32Array {
+    return new Int32Array(this);
+  } 
 
-  toTypedArray(): Float32Array {
+  toFloatArray(): Float32Array {
     return new Float32Array(this);
   } 
 

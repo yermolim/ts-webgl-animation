@@ -1,5 +1,7 @@
-import { GlType, numberTypes, uniformTypes, otherDataTypes, 
-  SamplerType, samplerTypes, textureTypes } from "./common";
+import { GlType, numberTypes, otherDataTypes, 
+  SamplerType, samplerTypes, textureTypes,
+  UniformFloatType, uniformFloatTypes, 
+  UniformIntType, uniformIntTypes } from "./common";
 
 export abstract class Uniform {
   protected _name: string;
@@ -27,70 +29,82 @@ export abstract class Uniform {
   abstract set(): void;
 }
 
-export class UniformInfo extends Uniform { 
-  protected readonly _type: GlType;
-  protected readonly _values: number[];
+export class UniformIntInfo extends Uniform { 
+  protected readonly _type: 5124 | 35670;
+  protected readonly _value: number;
 
   constructor (gl: WebGLRenderingContext, 
     program: WebGLProgram,
     name: string,
-    type: GlType,
-    values: number[]) { 
+    type: 5124 | 35670, // INT | BOOL
+    value: number) { 
+    super(gl, program, name);
+
+    this._value = value;    
+    this._type = type;
+  }
+
+  set() {
+    this._gl.uniform1i(this._location, this._value);
+  }
+}
+
+export class UniformFloatInfo extends Uniform { 
+  protected readonly _type = 5126;
+  protected readonly _value: number;
+
+  constructor (gl: WebGLRenderingContext, 
+    program: WebGLProgram,
+    name: string,
+    value: number) { 
+    super(gl, program, name);
+
+    this._value = value;
+  }
+
+  set() {
+    this._gl.uniform1f(this._location, this._value);
+  }
+}
+
+export class UniformIntArrayInfo extends Uniform { 
+  protected readonly _type: UniformIntType;
+  protected readonly _values: Int32Array;
+
+  constructor (gl: WebGLRenderingContext, 
+    program: WebGLProgram,
+    name: string,
+    type: UniformIntType,
+    values: Int32Array) { 
     super(gl, program, name);
 
     this._values = values;
 
     switch (type) {
       case numberTypes.INT:
-      case numberTypes.FLOAT:
-      case uniformTypes.BOOL:
-        if (values.length !== 1) {
-          throw new Error("Wrong values array length for a defined type");
-        }
+      case numberTypes.BOOL:
+        // do nothing
         break;
-      case uniformTypes.INT_VEC2:
-      case uniformTypes.FLOAT_VEC2:
-      case uniformTypes.BOOL_VEC2:
+      case uniformIntTypes.INT_VEC2:
+      case uniformIntTypes.BOOL_VEC2:
         if (values.length !== 2) {
           throw new Error("Wrong values array length for a defined type");
         }
         break;
-      case uniformTypes.INT_VEC3:
-      case uniformTypes.FLOAT_VEC3:
-      case uniformTypes.BOOL_VEC3:
+      case uniformIntTypes.INT_VEC3:
+      case uniformIntTypes.BOOL_VEC3:
         if (values.length !== 3) {
           throw new Error("Wrong values array length for a defined type");
         }
         break;
-      case uniformTypes.INT_VEC4:
-      case uniformTypes.FLOAT_VEC4:
-      case uniformTypes.BOOL_VEC4:
-      case uniformTypes.FLOAT_MAT2:
+      case uniformIntTypes.INT_VEC4:
+      case uniformIntTypes.BOOL_VEC4:
         if (values.length !== 4) {
           throw new Error("Wrong values array length for a defined type");
         }
         break;
-      case uniformTypes.FLOAT_MAT3:
-        if (values.length !== 9) {
-          throw new Error("Wrong values array length for a defined type");
-        }
-        break;
-      case uniformTypes.FLOAT_MAT4:
-        if (values.length !== 16) {
-          throw new Error("Wrong values array length for a defined type");
-        }
-        break;
-      case numberTypes.UNSIGNED_INT:
-      case otherDataTypes.UNSIGNED_INT_VEC2:
-      case otherDataTypes.UNSIGNED_INT_VEC3:
-      case otherDataTypes.UNSIGNED_INT_VEC4:
-      case otherDataTypes.FLOAT_MAT2x3:
-      case otherDataTypes.FLOAT_MAT2x4:
-      case otherDataTypes.FLOAT_MAT3x2:
-      case otherDataTypes.FLOAT_MAT3x4:
-      case otherDataTypes.FLOAT_MAT4x2:
-      case otherDataTypes.FLOAT_MAT4x3:
-        throw new Error(`Uniforms of type '${this._type}' are not supported`);
+      default:
+        throw new Error(`Uniforms of type '${this._type}' are not supported by UniformIntArrayInfo`);
     }
     
     this._type = type;
@@ -99,108 +113,102 @@ export class UniformInfo extends Uniform {
   set() {
     switch (this._type) {
       case numberTypes.INT:
-        this._gl.uniform1i(this._location, this._values[0]);
+      case numberTypes.BOOL:
+        this._gl.uniform1iv(this._location, this._values);
         break;
-      case numberTypes.FLOAT:
-        this._gl.uniform1f(this._location, this._values[0]);
-        break;
-      case uniformTypes.BOOL:
-        this._gl.uniform1i(this._location, this._values[0]);
-        break;
-      case uniformTypes.INT_VEC2:
-      case uniformTypes.BOOL_VEC2:
+      case uniformIntTypes.INT_VEC2:
+      case uniformIntTypes.BOOL_VEC2:
         this._gl.uniform2iv(this._location, this._values);
         break;
-      case uniformTypes.INT_VEC3:
-      case uniformTypes.BOOL_VEC3:
+      case uniformIntTypes.INT_VEC3:
+      case uniformIntTypes.BOOL_VEC3:
         this._gl.uniform3iv(this._location, this._values);
         break;
-      case uniformTypes.INT_VEC4:
-      case uniformTypes.BOOL_VEC4:
+      case uniformIntTypes.INT_VEC4:
+      case uniformIntTypes.BOOL_VEC4:
         this._gl.uniform4iv(this._location, this._values);
         break;
-      case uniformTypes.FLOAT_VEC2:
-        this._gl.uniform2fv(this._location, this._values);
-        break;
-      case uniformTypes.FLOAT_VEC3:
-        this._gl.uniform3fv(this._location, this._values);
-        break;
-      case uniformTypes.FLOAT_VEC4:
-        this._gl.uniform4fv(this._location, this._values);
-        break;
-      case uniformTypes.FLOAT_MAT2:
-        this._gl.uniformMatrix2fv(this._location, false, this._values);
-        break;
-      case uniformTypes.FLOAT_MAT3:
-        this._gl.uniformMatrix3fv(this._location, false, this._values);
-        break;
-      case uniformTypes.FLOAT_MAT4:
-        this._gl.uniformMatrix4fv(this._location, false, this._values);
-        break;
-      case numberTypes.UNSIGNED_INT:
-      case otherDataTypes.UNSIGNED_INT_VEC2:
-      case otherDataTypes.UNSIGNED_INT_VEC3:
-      case otherDataTypes.UNSIGNED_INT_VEC4:
-      case otherDataTypes.FLOAT_MAT2x3:
-      case otherDataTypes.FLOAT_MAT2x4:
-      case otherDataTypes.FLOAT_MAT3x2:
-      case otherDataTypes.FLOAT_MAT3x4:
-      case otherDataTypes.FLOAT_MAT4x2:
-      case otherDataTypes.FLOAT_MAT4x3:
-        throw new Error(`Uniforms of type '${this._type}' are not supported`);
+      default:
+        throw new Error(`Uniforms of type '${this._type}' are not supported by UniformIntArrayInfo`);
     }
   }
 }
 
-export class UniformArrayInfo extends Uniform {
-  protected readonly _type: GlType;
-  protected readonly _value: number[];
+export class UniformFloatArrayInfo extends Uniform {  
+  protected readonly _type: UniformFloatType;
+  protected readonly _values: Float32Array;
 
   constructor (gl: WebGLRenderingContext, 
     program: WebGLProgram,
     name: string,
-    type: GlType,
-    value: number[]) { 
+    type: UniformFloatType,
+    values: Float32Array) { 
     super(gl, program, name);
 
+    this._values = values;
+
+    switch (type) {
+      case numberTypes.FLOAT:
+        // do nothing
+        break;
+      case uniformFloatTypes.FLOAT_VEC2:
+        if (values.length !== 2) {
+          throw new Error("Wrong values array length for a defined type");
+        }
+        break;
+      case uniformFloatTypes.FLOAT_VEC3:
+        if (values.length !== 3) {
+          throw new Error("Wrong values array length for a defined type");
+        }
+        break;
+      case uniformFloatTypes.FLOAT_VEC4:
+      case uniformFloatTypes.FLOAT_MAT2:
+        if (values.length !== 4) {
+          throw new Error("Wrong values array length for a defined type");
+        }
+        break;
+      case uniformFloatTypes.FLOAT_MAT3:
+        if (values.length !== 9) {
+          throw new Error("Wrong values array length for a defined type");
+        }
+        break;
+      case uniformFloatTypes.FLOAT_MAT4:
+        if (values.length !== 16) {
+          throw new Error("Wrong values array length for a defined type");
+        }
+        break;
+      default:
+        throw new Error(`Uniforms of type '${this._type}' are not supported by UniformFloatArrayInfo`);
+    }
+    
     this._type = type;
-    this._value = value;
   }
 
   set() {
     switch (this._type) {
-      case numberTypes.INT:
-      case uniformTypes.BOOL:
-        this._gl.uniform1iv(this._location, this._value);
-        break;
       case numberTypes.FLOAT:
-        this._gl.uniform1fv(this._location, this._value);
+        this._gl.uniform1fv(this._location, this._values);
         break;
-      case uniformTypes.INT_VEC2:
-      case uniformTypes.INT_VEC3:
-      case uniformTypes.INT_VEC4:
-      case uniformTypes.FLOAT_VEC2:
-      case uniformTypes.FLOAT_VEC3:
-      case uniformTypes.FLOAT_VEC4:
-      case uniformTypes.FLOAT_MAT2:
-      case uniformTypes.FLOAT_MAT3:
-      case uniformTypes.FLOAT_MAT4:
-      case uniformTypes.BOOL_VEC2:
-      case uniformTypes.BOOL_VEC3:
-      case uniformTypes.BOOL_VEC4:
-        throw new Error(`Uniforms of type '${this._type}' are not supported as array uniform.
-          Use 'INT', 'FLOAT', or 'BOOL' uniform array`);
-      case numberTypes.UNSIGNED_INT:
-      case otherDataTypes.UNSIGNED_INT_VEC2:
-      case otherDataTypes.UNSIGNED_INT_VEC3:
-      case otherDataTypes.UNSIGNED_INT_VEC4:
-      case otherDataTypes.FLOAT_MAT2x3:
-      case otherDataTypes.FLOAT_MAT2x4:
-      case otherDataTypes.FLOAT_MAT3x2:
-      case otherDataTypes.FLOAT_MAT3x4:
-      case otherDataTypes.FLOAT_MAT4x2:
-      case otherDataTypes.FLOAT_MAT4x3:
-        throw new Error(`Uniforms of type '${this._type}' are not supported`);
+      case uniformFloatTypes.FLOAT_VEC2:
+        this._gl.uniform2fv(this._location, this._values);
+        break;
+      case uniformFloatTypes.FLOAT_VEC3:
+        this._gl.uniform3fv(this._location, this._values);
+        break;
+      case uniformFloatTypes.FLOAT_VEC4:
+        this._gl.uniform4fv(this._location, this._values);
+        break;
+      case uniformFloatTypes.FLOAT_MAT2:
+        this._gl.uniformMatrix2fv(this._location, false, this._values);
+        break;
+      case uniformFloatTypes.FLOAT_MAT3:
+        this._gl.uniformMatrix3fv(this._location, false, this._values);
+        break;
+      case uniformFloatTypes.FLOAT_MAT4:
+        this._gl.uniformMatrix4fv(this._location, false, this._values);
+        break;
+      default:
+        throw new Error(`Uniforms of type '${this._type}' are not supported by UniformFloatArrayInfo`);
     }
   }
 }
