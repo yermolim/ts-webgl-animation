@@ -687,7 +687,8 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
     // set constant attributes if not set (first time)
     // DEBUG
     this._tempData = new Float32Array([0.1, 0.5, 0, 1, 0.3, 0.1, 0, 1, 0.3, 0.5, 0, 1]);
-    this._program.setBufferAttribute("position", this._tempData, 4);
+    this._program.setBufferAttribute("position", this._tempData, {vectorSize: 4});
+    this._program.triangleCount = 1;
   }
 
   prepareNextFrame(resolution: Vec2, pointerPosition: Vec2, pointerDown: boolean, elapsedTime: number) {
@@ -701,7 +702,7 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
 
   renderFrame() {
     // DEBUG
-    this._program.render(0, 1);
+    this._program.render();
   }
 
   clear() {

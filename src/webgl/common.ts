@@ -128,6 +128,21 @@ export const otherDataSizes = {
   0x8DC8: numberSizes[numberTypes.UNSIGNED_INT] * 4,
 } as const;
 
+export const indexTypes = {
+  UNSIGNED_BYTE: numberTypes.UNSIGNED_BYTE,
+  UNSIGNED_SHORT: numberTypes.UNSIGNED_SHORT,
+  UNSIGNED_INT: numberTypes.UNSIGNED_INT,
+} as const;
+export type IndexType = (typeof indexTypes[keyof typeof indexTypes]);
+
+export const bufferUsageTypes = {
+  STATIC_DRAW: 0x88E4,
+  STREAM_DRAW: 0x88E0,
+  DYNAMIC_DRAW: 0x88E8,
+} as const;
+export type BufferUsageType = (typeof bufferUsageTypes[keyof typeof bufferUsageTypes]);
+
+
 export type GlType = NumberType | UniformType | OtherDataType;
 
 export type TypedArray =
@@ -140,11 +155,12 @@ export type TypedArray =
   | Uint32Array
   | Float32Array;
 
-export function getNumberTypeByArray(typedArray: Array<number>): number {
+export function getNumberTypeByArray(typedArray: TypedArray): NumberType {
   if (typedArray instanceof Int8Array) {
     return numberTypes.BYTE;
   };     
-  if (typedArray instanceof Uint8Array) {
+  if (typedArray instanceof Uint8Array
+    || typedArray instanceof Uint8ClampedArray) {
     return numberTypes.UNSIGNED_BYTE;
   };    
   if (typedArray instanceof Int16Array) {

@@ -276,9 +276,6 @@ export abstract class Texture extends Uniform {
 }
 
 export class TextureInfo extends Texture {
-  //#region WebGL2
-  // sampler?: WebGLSampler;
-  //#endregion
   protected readonly _target: number;
 
   constructor (gl: WebGLRenderingContext, 
@@ -302,9 +299,6 @@ export class TextureInfo extends Texture {
 }
 
 export class TextureArrayInfo extends Texture {
-  //#region WebGL2
-  // sampler?: WebGLSampler;
-  //#endregion
   protected readonly _target: number;
 
   constructor (gl: WebGLRenderingContext, 
@@ -325,10 +319,7 @@ export class TextureArrayInfo extends Texture {
 
     this.textures.forEach((x, i) => {
       this._gl.activeTexture(textureTypes.TEXTURE0 + units[i]);
-      this._gl.bindTexture(this._target, x); 
-      //#region WebGL2
-      // gl.bindSampler(unit, sampler);
-      //#endregion
+      this._gl.bindTexture(this._target, x);
     });
   }
  

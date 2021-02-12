@@ -1,30 +1,48 @@
 /* eslint-disable no-bitwise */
 import { Mat, Vec } from "../math/common";
-import { Attribute, BufferInfo, ConstantInfo } from "./attributes";
-import { shaderTypes, ShaderType, numberTypes, TypedArray, UniformType, uniformFloatTypes, uniformIntTypes } from "./common";
+import { Attribute, BufferInfo, BufferInfoOptions, ConstantInfo, IndexInfo } from "./attributes";
+import { shaderTypes, ShaderType, numberTypes, TypedArray, UniformType, uniformFloatTypes, uniformIntTypes, IndexType } from "./common";
 import { Uniform, UniformFloatArrayInfo, UniformFloatInfo, UniformIntArrayInfo, UniformIntInfo } from "./uniforms";
 
-export class AnimationProgram {
+export class AnimationProgram {  
+  protected readonly _extIndexed: OES_element_index_uint;
 
-  private readonly _gl: WebGLRenderingContext;
-  private readonly _program: WebGLProgram;
+  protected readonly _gl: WebGLRenderingContext;
+  protected readonly _program: WebGLProgram;
 
-  private readonly _vertexShader: WebGLShader;
-  private readonly _fragmentShader: WebGLShader;
+  protected readonly _vertexShader: WebGLShader;
+  protected readonly _fragmentShader: WebGLShader;
 
-  private readonly _attributes = new Map<string, Attribute>();
-  private readonly _uniforms = new Map<string, Uniform>();
-  
+  protected readonly _attributes = new Map<string, Attribute>();
+  protected readonly _uniforms = new Map<string, Uniform>();
+
+  protected _offset = 0;
+  get offset(): number {
+    return this._offset;
+  }
+  set offset(count: number) {
+    this._offset = Math.max(0, count);
+  }
+
+  protected _triangleCount = 0;
+  get triangleCount(): number {
+    return this._triangleCount;
+  }
+  set triangleCount(count: number) {
+    this._triangleCount = Math.max(0, count);
+  }
+
   constructor (gl: WebGLRenderingContext, 
     vertexShaderSource: string, fragmentShaderSource: string) {
 
     const vertexShader = AnimationProgram.loadShader(gl, shaderTypes.VERTEX_SHADER, vertexShaderSource);
     const fragmentShader = AnimationProgram.loadShader(gl, shaderTypes.FRAGMENT_SHADER, fragmentShaderSource);
+  
+    this._extIndexed = gl.getExtension("OES_element_index_uint");
 
     const program = gl.createProgram();
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
-    // TODO: bind attribute locations and varyings
     
     this._gl = gl;
     this._program = program;
@@ -54,17 +72,18 @@ export class AnimationProgram {
     return shader;  
   } 
 
-  render(offset: number, count: number, clear = true) {
+  render(clear = true) {
     if (clear) {
       this.clear();
     }
+    this.set();
 
-    this._gl.useProgram(this._program);
-
-    this._attributes.forEach(x => x.set());
-    this._uniforms.forEach(x => x.set());
-
-    this._gl.drawArrays(this._gl.TRIANGLES, offset * 3, count * 3);
+    const index = this._attributes.get("index");
+    if (index) {
+      this._gl.drawElements(this._gl.TRIANGLES, this._triangleCount * 3, index.type, this._offset);
+    } else {
+      this._gl.drawArrays(this._gl.TRIANGLES, this._offset, this._triangleCount * 3);
+    }
   }
 
   clear() {    
@@ -89,8 +108,7 @@ export class AnimationProgram {
     if (isNaN(s)) {
       return;
     }
-    const constant = new ConstantInfo(this._gl, this._program, name,
-      numberTypes.FLOAT, 1, s);
+    const constant = new ConstantInfo(this._gl, this._program, name, new Float32Array([s]));
     this.setAttribute(constant);
   }
 
@@ -98,22 +116,47 @@ export class AnimationProgram {
     if (!v) {
       return;
     }
-    const values = v.toFloatArray();
-    const constant = new ConstantInfo(this._gl, this._program, name,
-      numberTypes.FLOAT, <2|3|4>values.length, ...values);
+    const constant = new ConstantInfo(this._gl, this._program, name, v.toFloatArray());
     this.setAttribute(constant);
   }
 
-  setBufferAttribute(name: string, data: TypedArray,
-    vectorSize: 1 | 2 | 3 | 4 = 1, vectorNumber: 1 | 2 | 3 | 4 = 1,
-    stride = 0, offset = 0, normalize = false,) {
+  setConstantMatAttribute(name: string, m: Mat) {
+    if (!m) {
+      return;
+    }
+    const constant = new ConstantInfo(this._gl, this._program, name, m.toFloatArray());
+    this.setAttribute(constant);
+  }
+
+  setBufferAttribute(name: string, data: TypedArray, options?: BufferInfoOptions) {
     if (!data?.length) {
       return;
     }
     const buffer = new BufferInfo(this._gl, this._program, name,
-      data, vectorSize, vectorNumber, stride, offset, normalize);
+      data, options);
+    this.setAttribute(buffer);
+  }  
+  
+  setIndexAttribute(data: Uint8Array | Uint8Array | Uint16Array | Uint32Array) {
+    if (!data?.length) {
+      return;
+    }
+
+    if (!this._extIndexed && data instanceof Uint32Array) {
+      throw new Error("'OES_element_index_uint' extension not supported");
+    }
+
+    const buffer = new IndexInfo(this._gl, this._program, data);
     this.setAttribute(buffer);
   }
+  
+  updateBufferAttribute(name: string, data: TypedArray, offset: number): void { 
+    const attribute = this._attributes.get(name);
+    if (!(attribute instanceof BufferInfo)) {
+      return;
+    }
+    attribute.updateData(data, offset);
+  }  
 
   deleteAttribute(name: string) {
     const attribute = this._attributes.get(name);
@@ -280,7 +323,7 @@ export class AnimationProgram {
   }
   //#endregion
 
-  private setAttribute(attr: Attribute) {
+  protected setAttribute(attr: Attribute) {
     const oldAttr = this._attributes.get(attr.name);
     if (oldAttr) {
       oldAttr.destroy();
@@ -288,11 +331,56 @@ export class AnimationProgram {
     this._attributes.set(attr.name, attr);
   }
 
-  private setUniform(uniform: Uniform) {    
+  protected setUniform(uniform: Uniform) {    
     const oldUniform = this._attributes.get(uniform.name);
     if (oldUniform) {
       oldUniform.destroy();
     }
     this._uniforms.set(uniform.name, uniform);
+  }
+
+  protected set() {
+    this._gl.useProgram(this._program);
+    this._attributes.forEach(x => x.set());
+    this._uniforms.forEach(x => x.set());
+  }
+}
+
+export class InstancedAnimationProgram extends AnimationProgram {
+  private readonly _extInstanced: ANGLE_instanced_arrays;
+
+  private _instanceCount = 0;
+  get instanceCount(): number {
+    return this._instanceCount;
+  }
+  set instanceCount(count: number) {
+    this._instanceCount = Math.max(0, count);
+  }
+    
+  constructor (gl: WebGLRenderingContext, 
+    vertexShaderSource: string, fragmentShaderSource: string) {
+    super(gl, vertexShaderSource, fragmentShaderSource);
+
+    this._extInstanced = gl.getExtension("ANGLE_instanced_arrays"); 
+    if (!this._extInstanced) {
+      this.destroy();
+      throw new Error("'ANGLE_instanced_arrays' extension not supported");
+    }
+  } 
+
+  render(clear = true) {
+    if (clear) {
+      this.clear();
+    }
+    this.set();
+    
+    const index = this._attributes.get("index");
+    if (index) {
+      this._extInstanced.drawElementsInstancedANGLE(this._gl.TRIANGLES, this._triangleCount * 3,
+        index.type, this._offset, this._instanceCount);
+    } else {
+      this._extInstanced.drawArraysInstancedANGLE(this._gl.TRIANGLES, this._offset,
+        this._triangleCount * 3, this._instanceCount);
+    }
   }
 }

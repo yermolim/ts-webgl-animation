@@ -231,6 +231,36 @@
         BOOL_VEC3: 0x8B58,
         BOOL_VEC4: 0x8B59,
     };
+    const bufferUsageTypes = {
+        STATIC_DRAW: 0x88E4,
+        STREAM_DRAW: 0x88E0,
+        DYNAMIC_DRAW: 0x88E8,
+    };
+    function getNumberTypeByArray(typedArray) {
+        if (typedArray instanceof Int8Array) {
+            return numberTypes.BYTE;
+        }
+        if (typedArray instanceof Uint8Array
+            || typedArray instanceof Uint8ClampedArray) {
+            return numberTypes.UNSIGNED_BYTE;
+        }
+        if (typedArray instanceof Int16Array) {
+            return numberTypes.SHORT;
+        }
+        if (typedArray instanceof Uint16Array) {
+            return numberTypes.UNSIGNED_SHORT;
+        }
+        if (typedArray instanceof Int32Array) {
+            return numberTypes.INT;
+        }
+        if (typedArray instanceof Uint32Array) {
+            return numberTypes.UNSIGNED_INT;
+        }
+        if (typedArray instanceof Float32Array) {
+            return numberTypes.FLOAT;
+        }
+        throw new Error("Unsupported array type");
+    }
 
     class Attribute {
         constructor(gl, program, name) {
@@ -246,39 +276,43 @@
         }
     }
     class ConstantInfo extends Attribute {
-        constructor(gl, program, name, type, size, ...values) {
+        constructor(gl, program, name, values) {
             super(gl, program, name);
-            this._type = type || numberTypes.FLOAT;
-            this.size = size || 1;
-            if (values?.length) {
-                this.x = values[0] || 0;
-                this.y = values[1] || 0;
-                this.z = values[2] || 0;
-                this.w = values[3] || 0;
-            }
-            else {
-                this.x = 0;
-                this.y = 0;
-                this.z = 0;
-                this.w = 0;
+            this._type = getNumberTypeByArray(values);
+            this._size = values.length;
+            if (![1, 2, 3, 4, 9, 16].includes(this._size)) {
+                throw new Error("Incorrect constant value length");
             }
         }
         set() {
             this._gl.disableVertexAttribArray(this._location);
             switch (this._type) {
                 case numberTypes.FLOAT:
-                    switch (this.size) {
+                    switch (this._size) {
                         case 1:
-                            this._gl.vertexAttrib1f(this._location, this.x);
+                            this._gl.vertexAttrib1f(this._location, this._values[0]);
                             break;
                         case 2:
-                            this._gl.vertexAttrib2f(this._location, this.x, this.y);
+                            this._gl.vertexAttrib2fv(this._location, this._values);
                             break;
                         case 3:
-                            this._gl.vertexAttrib3f(this._location, this.x, this.y, this.z);
+                            this._gl.vertexAttrib3fv(this._location, this._values);
                             break;
                         case 4:
-                            this._gl.vertexAttrib4f(this._location, this.x, this.y, this.z, this.w);
+                            this._gl.vertexAttrib4fv(this._location, this._values);
+                            break;
+                        case 9:
+                            const [a, b, c, d, e, f, g, h, i] = this._values;
+                            this._gl.vertexAttrib3f(this._location, a, b, c);
+                            this._gl.vertexAttrib3f(this._location + 1, d, e, f);
+                            this._gl.vertexAttrib3f(this._location + 2, g, h, i);
+                            break;
+                        case 16:
+                            const [x_x, x_y, x_z, x_w, y_x, y_y, y_z, y_w, z_x, z_y, z_z, z_w, w_x, w_y, w_z, w_w] = this._values;
+                            this._gl.vertexAttrib4f(this._location, x_x, x_y, x_z, x_w);
+                            this._gl.vertexAttrib4f(this._location + 1, y_x, y_y, y_z, y_w);
+                            this._gl.vertexAttrib4f(this._location + 2, z_x, z_y, z_z, z_w);
+                            this._gl.vertexAttrib4f(this._location + 3, w_x, w_y, w_z, w_w);
                             break;
                         default:
                             throw new Error("Incorrect constant value length");
@@ -292,64 +326,74 @@
         }
     }
     class BufferInfo extends Attribute {
-        constructor(gl, program, name, data, vectorSize = 1, vectorNumber = 1, stride = 0, offset = 0, normalize = false) {
+        constructor(gl, program, name, data, options) {
             super(gl, program, name);
-            this.vectorSize = vectorSize;
-            this.vectorNumber = vectorNumber;
-            this.stride = stride;
-            this.offset = offset;
-            this.normalize = normalize;
-            let type;
-            if (data instanceof Int8Array) {
-                type = numberTypes.BYTE;
+            this._type = getNumberTypeByArray(data);
+            const { usage, vectorSize, vectorNumber, stride, offset, normalize } = Object.assign(BufferInfo.defaultOptions, options);
+            let minStride = 0;
+            if (vectorNumber !== 1) {
+                minStride = vectorSize * vectorNumber * numberSizes[this.type];
+                this._vectorOffset = this._stride / vectorNumber;
             }
-            else if (data instanceof Uint8Array
+            else {
+                this._vectorOffset = 0;
+            }
+            this._vectorSize = vectorSize;
+            this._vectorNumber = vectorNumber;
+            this._offset = offset;
+            this._stride = Math.min(255, Math.max(minStride, stride));
+            this._normalize = normalize;
+            this._buffer = gl.createBuffer();
+            gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);
+            gl.bufferData(bufferTypes.ARRAY_BUFFER, data, usage);
+        }
+        updateData(data, offset) {
+            this._gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);
+            this._gl.bufferSubData(bufferTypes.ARRAY_BUFFER, offset, data);
+        }
+        set() {
+            this._gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);
+            for (let i = 0, j = this._location; i < this._vectorNumber; i++, j++) {
+                this._gl.enableVertexAttribArray(j);
+                this._gl.vertexAttribPointer(j, this._vectorSize, this._type, this._normalize, this._stride, this._offset + i * this._vectorOffset);
+            }
+        }
+        destroy() {
+            this._gl.deleteBuffer(this._buffer);
+        }
+    }
+    BufferInfo.defaultOptions = {
+        usage: bufferUsageTypes.STATIC_DRAW,
+        vectorSize: 1,
+        vectorNumber: 1,
+        stride: 0,
+        offset: 0,
+        normalize: false,
+    };
+    class IndexInfo extends Attribute {
+        constructor(gl, program, data) {
+            super(gl, program, "index");
+            let type;
+            if (data instanceof Uint8Array
                 || data instanceof Uint8ClampedArray) {
                 type = numberTypes.UNSIGNED_BYTE;
-            }
-            else if (data instanceof Int16Array) {
-                type = numberTypes.SHORT;
             }
             else if (data instanceof Uint16Array) {
                 type = numberTypes.UNSIGNED_SHORT;
             }
-            else if (data instanceof Int32Array) {
-                type = numberTypes.INT;
-            }
             else if (data instanceof Uint32Array) {
                 type = numberTypes.UNSIGNED_INT;
             }
-            else if (data instanceof Float32Array) {
-                type = numberTypes.FLOAT;
-            }
             else {
-                throw new Error("Unsupported data array type");
+                throw new Error("Unsupported index type");
             }
             this._type = type;
             this._buffer = gl.createBuffer();
             this._gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);
-            gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-            let minStride = 0;
-            if (vectorNumber !== 1) {
-                minStride = vectorSize * vectorNumber * numberSizes[type];
-                this.vectorOffset = this.stride / vectorNumber;
-            }
-            else {
-                this.vectorOffset = 0;
-            }
-            if (stride < minStride) {
-                this.stride = minStride;
-            }
-            else if (stride > 255) {
-                this.stride = 255;
-            }
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, gl.STATIC_DRAW);
         }
         set() {
-            this._gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);
-            for (let i = 0, j = this._location; i < this.vectorNumber; i++, j++) {
-                this._gl.enableVertexAttribArray(j);
-                this._gl.vertexAttribPointer(j, this.vectorSize, this._type, this.normalize, this.stride, this.offset + i * this.vectorOffset);
-            }
+            this._gl.bindBuffer(bufferTypes.ELEMENT_ARRAY_BUFFER, this._buffer);
         }
         destroy() {
             this._gl.deleteBuffer(this._buffer);
@@ -524,8 +568,11 @@
         constructor(gl, vertexShaderSource, fragmentShaderSource) {
             this._attributes = new Map();
             this._uniforms = new Map();
+            this._offset = 0;
+            this._triangleCount = 0;
             const vertexShader = AnimationProgram.loadShader(gl, shaderTypes.VERTEX_SHADER, vertexShaderSource);
             const fragmentShader = AnimationProgram.loadShader(gl, shaderTypes.FRAGMENT_SHADER, fragmentShaderSource);
+            this._extIndexed = gl.getExtension("OES_element_index_uint");
             const program = gl.createProgram();
             gl.attachShader(program, vertexShader);
             gl.attachShader(program, fragmentShader);
@@ -539,6 +586,18 @@
                 throw new Error("Error while linking program: " + log);
             }
         }
+        get offset() {
+            return this._offset;
+        }
+        set offset(count) {
+            this._offset = Math.max(0, count);
+        }
+        get triangleCount() {
+            return this._triangleCount;
+        }
+        set triangleCount(count) {
+            this._triangleCount = Math.max(0, count);
+        }
         static loadShader(gl, shaderType, shaderSource) {
             const shader = gl.createShader(shaderType);
             gl.shaderSource(shader, shaderSource);
@@ -551,14 +610,18 @@
             }
             return shader;
         }
-        render(offset, count, clear = true) {
+        render(clear = true) {
             if (clear) {
                 this.clear();
             }
-            this._gl.useProgram(this._program);
-            this._attributes.forEach(x => x.set());
-            this._uniforms.forEach(x => x.set());
-            this._gl.drawArrays(this._gl.TRIANGLES, offset * 3, count * 3);
+            this.set();
+            const index = this._attributes.get("index");
+            if (index) {
+                this._gl.drawElements(this._gl.TRIANGLES, this._triangleCount * 3, index.type, this._offset);
+            }
+            else {
+                this._gl.drawArrays(this._gl.TRIANGLES, this._offset, this._triangleCount * 3);
+            }
         }
         clear() {
             this._gl.cullFace(this._gl.BACK);
@@ -578,23 +641,46 @@
             if (isNaN(s)) {
                 return;
             }
-            const constant = new ConstantInfo(this._gl, this._program, name, numberTypes.FLOAT, 1, s);
+            const constant = new ConstantInfo(this._gl, this._program, name, new Float32Array([s]));
             this.setAttribute(constant);
         }
         setConstantVecAttribute(name, v) {
             if (!v) {
                 return;
             }
-            const values = v.toFloatArray();
-            const constant = new ConstantInfo(this._gl, this._program, name, numberTypes.FLOAT, values.length, ...values);
+            const constant = new ConstantInfo(this._gl, this._program, name, v.toFloatArray());
             this.setAttribute(constant);
         }
-        setBufferAttribute(name, data, vectorSize = 1, vectorNumber = 1, stride = 0, offset = 0, normalize = false) {
+        setConstantMatAttribute(name, m) {
+            if (!m) {
+                return;
+            }
+            const constant = new ConstantInfo(this._gl, this._program, name, m.toFloatArray());
+            this.setAttribute(constant);
+        }
+        setBufferAttribute(name, data, options) {
             if (!data?.length) {
                 return;
             }
-            const buffer = new BufferInfo(this._gl, this._program, name, data, vectorSize, vectorNumber, stride, offset, normalize);
+            const buffer = new BufferInfo(this._gl, this._program, name, data, options);
             this.setAttribute(buffer);
+        }
+        setIndexAttribute(data) {
+            if (!data?.length) {
+                return;
+            }
+            if (!this._extIndexed && data instanceof Uint32Array) {
+                throw new Error("'OES_element_index_uint' extension not supported");
+            }
+            const buffer = new IndexInfo(this._gl, this._program, data);
+            this.setAttribute(buffer);
+        }
+        updateBufferAttribute(name, data, offset) {
+            const attribute = this._attributes.get(name);
+            if (!(attribute instanceof BufferInfo)) {
+                return;
+            }
+            attribute.updateData(data, offset);
         }
         deleteAttribute(name) {
             const attribute = this._attributes.get(name);
@@ -734,6 +820,11 @@
             }
             this._uniforms.set(uniform.name, uniform);
         }
+        set() {
+            this._gl.useProgram(this._program);
+            this._attributes.forEach(x => x.set());
+            this._uniforms.forEach(x => x.set());
+        }
     }
 
     class AnimationWebGl {
@@ -794,7 +885,6 @@
                 const elapsedTime = framePreparationStart - this._animationStartTimeStamp;
                 this._control.prepareNextFrame(this._resolution, this._pointerPosition, this._pointerIsDown, elapsedTime);
                 this._lastFramePreparationTime = performance.now() - framePreparationStart;
-                console.log(this._lastFramePreparationTime);
                 requestAnimationFrame(() => {
                     const frameRenderStart = performance.now();
                     this._control.renderFrame();
@@ -875,13 +965,14 @@
             }
             this._program = new AnimationProgram(gl, this._vertexShader, this._fragmentShader);
             this._tempData = new Float32Array([0.1, 0.5, 0, 1, 0.3, 0.1, 0, 1, 0.3, 0.5, 0, 1]);
-            this._program.setBufferAttribute("position", this._tempData, 4);
+            this._program.setBufferAttribute("position", this._tempData, { vectorSize: 4 });
+            this._program.triangleCount = 1;
         }
         prepareNextFrame(resolution, pointerPosition, pointerDown, elapsedTime) {
             this.resize(resolution);
         }
         renderFrame() {
-            this._program.render(0, 1);
+            this._program.render();
         }
         clear() {
             this._program.clear();
