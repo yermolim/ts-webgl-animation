@@ -1,3 +1,4 @@
+/* eslint-disable no-bitwise */
 export function getRandomInt(min: number, max: number): number {
   return Math.round(Math.random() * (max - min)) + min;
 }
@@ -40,6 +41,10 @@ export function smoothstep(v: number, min: number, max: number, perlin: false) {
   return perlin
     ? v * v * v * (v * (v * 6 - 15) + 10)
     : v * v * (3 - 2 * v);
+}
+
+export function isPowerOf2(value: number) {
+  return (value & (value - 1)) === 0;
 }
 
 export interface NumberElements extends Iterable<number> {  

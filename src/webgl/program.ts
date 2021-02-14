@@ -301,11 +301,11 @@ export class AnimationProgram {
   //#endregion
 
   //#region texture
-  setTexture() {
+  setTexture(name: string, texture: WebGLTexture) {
     // TODO: implement
   }
 
-  setTextureArray() {
+  setTextureArray(name: string, textures: WebGLTexture[]) {
     // TODO: implement
   }
   //#endregion
@@ -383,4 +383,13 @@ export class InstancedAnimationProgram extends AnimationProgram {
         this._triangleCount * 3, this._instanceCount);
     }
   }
+  
+  setInstancedBufferAttribute(name: string, data: TypedArray, options?: BufferInfoOptions) {
+    if (!data?.length) {
+      return;
+    }
+    const buffer = new BufferInfo(this._gl, this._program, name,
+      data, options, this._extInstanced);
+    this.setAttribute(buffer);
+  }  
 }

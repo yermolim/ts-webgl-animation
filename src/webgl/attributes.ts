@@ -8,6 +8,7 @@ export interface BufferInfoOptions {
   stride?: number;
   offset?: number;
   normalize?: boolean;
+  divisor?: number;
 }
 
 export abstract class Attribute {
@@ -97,6 +98,26 @@ export class ConstantInfo extends Attribute {
             throw new Error("Incorrect constant value length");
         }  
         break;
+      //#region WebGL2
+      // case numberTypes.INT:
+      //   switch (value.size) {
+      //     case 4:
+      //       gl.vertexAttribI4i(this._location, <Int32Array>this._values);
+      //       break;
+      //     default:      
+      //       throw new Error("Incorrect constant value length");
+      //   }  
+      //   break;
+      // case numberTypes.UNSIGNED_INT:
+      //   switch (value.size) {
+      //     case 4:
+      //       gl.vertexAttribI4ui(this._location, <Uint32Array>this._values);
+      //       break;
+      //     default:      
+      //       throw new Error("Incorrect constant value length");
+      //   }  
+      //   break;
+      //#endregion
       default:
         throw new Error("Unsupported constant attribute type");
     }
@@ -125,19 +146,23 @@ export class BufferInfo<T extends TypedArray> extends Attribute {
   protected _offset: number;
   protected _normalize: boolean;
 
+  protected _divisor: number;
+  protected _instancedExt: ANGLE_instanced_arrays;
+
   protected _vectorOffset: number;
 
   constructor(gl: WebGLRenderingContext,
     program: WebGLProgram, 
     name: string,
     data: T,
-    options?: BufferInfoOptions) {
+    options?: BufferInfoOptions,
+    instancedExt?: ANGLE_instanced_arrays) {
     super(gl, program, name);
 
     this._type = getNumberTypeByArray(data); 
     
-    const { usage, vectorSize, vectorNumber,
-      stride, offset, normalize } = Object.assign(BufferInfo.defaultOptions, options); 
+    const { usage, vectorSize, vectorNumber, stride, offset, 
+      normalize, divisor, divisor: instancedStep } = Object.assign(BufferInfo.defaultOptions, options); 
     let minStride = 0;    
     if (vectorNumber !== 1) {
       minStride = vectorSize * vectorNumber * numberSizes[this.type];
@@ -150,6 +175,9 @@ export class BufferInfo<T extends TypedArray> extends Attribute {
     this._offset = offset;
     this._stride = Math.min(255, Math.max(minStride, stride));
     this._normalize = normalize;
+
+    this._divisor = divisor;
+    this._instancedExt = instancedExt;
 
     this._buffer = gl.createBuffer();
     gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);  
@@ -173,6 +201,15 @@ export class BufferInfo<T extends TypedArray> extends Attribute {
         this._stride, 
         this._offset + i * this._vectorOffset,
       );
+
+      //WebGL1
+      if (this._divisor && this._instancedExt) {
+        this._instancedExt.vertexAttribDivisorANGLE(this._location, this._divisor);
+      }
+      //WebGL2
+      // if (this._divisor) {      
+      //   this._gl.vertexAttribDivisor(this._location, this._divisorr);
+      // }
     }
   }  
 

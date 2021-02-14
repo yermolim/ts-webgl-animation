@@ -235,13 +235,20 @@ export abstract class Texture extends Uniform {
   protected readonly _type: SamplerType;
   protected readonly _unit: number;
   protected readonly _target: number;
+  // WebGL2
+  // protected readonly sampler?: WebGLSampler;
 
   protected constructor(gl: WebGLRenderingContext, 
     program: WebGLProgram,
     name: string,
+    unit: number,
     type: SamplerType,
-    unit: number) {
-    super(gl, program, name);    
+    // WebGL2
+    // sampler?: WebGLSampler,
+  ) {
+    super(gl, program, name);  
+    // WebGL2  
+    // super(gl, program, name, sampler);    
 
     switch (this._type) {
       case samplerTypes.SAMPLER_2D:
@@ -250,23 +257,24 @@ export abstract class Texture extends Uniform {
       case samplerTypes.UNSIGNED_INT_SAMPLER_2D:
         this._target = textureTypes.TEXTURE_2D;
         break;
-      case samplerTypes.SAMPLER_3D:
-      case samplerTypes.INT_SAMPLER_3D:
-      case samplerTypes.UNSIGNED_INT_SAMPLER_3D:
-        this._target = textureTypes.TEXTURE_3D;
-        break;
-      case samplerTypes.SAMPLER_2D_ARRAY:
-      case samplerTypes.SAMPLER_2D_ARRAY_SHADOW:
-      case samplerTypes.INT_SAMPLER_2D_ARRAY:
-      case samplerTypes.UNSIGNED_INT_SAMPLER_2D_ARRAY:
-        this._target = textureTypes.TEXTURE_2D_ARRAY;
-        break;
       case samplerTypes.SAMPLER_CUBE:
       case samplerTypes.SAMPLER_CUBE_SHADOW:
       case samplerTypes.INT_SAMPLER_CUBE:
       case samplerTypes.UNSIGNED_INT_SAMPLER_CUBE:  
         this._target = textureTypes.TEXTURE_CUBE_MAP;        
         break;
+      // WebGL2
+      // case samplerTypes.SAMPLER_3D:
+      // case samplerTypes.INT_SAMPLER_3D:
+      // case samplerTypes.UNSIGNED_INT_SAMPLER_3D:
+      //   this._target = textureTypes.TEXTURE_3D;
+      //   break;
+      // case samplerTypes.SAMPLER_2D_ARRAY:
+      // case samplerTypes.SAMPLER_2D_ARRAY_SHADOW:
+      // case samplerTypes.INT_SAMPLER_2D_ARRAY:
+      // case samplerTypes.UNSIGNED_INT_SAMPLER_2D_ARRAY:
+      //   this._target = textureTypes.TEXTURE_2D_ARRAY;
+      //   break;
       default:
         throw new Error(`Unsupported sampler type ${type}`);
     }
@@ -281,16 +289,23 @@ export class TextureInfo extends Texture {
   constructor (gl: WebGLRenderingContext, 
     program: WebGLProgram,
     name: string,
-    type: SamplerType,
     unit: number,
-    public readonly texture: WebGLTexture) { 
-    super(gl, program, name, type, unit);    
+    type: SamplerType,
+    public readonly texture: WebGLTexture,    
+    // sampler?: WebGLSampler,
+  ) { 
+    super(gl, program, name, unit, type); 
+    // WebGL2  
+    // super(gl, program, name, unit, type, sampler);    
   }
   
   set() {
     this._gl.uniform1i(location, this._unit);
+
     this._gl.activeTexture(textureTypes.TEXTURE0 + this._unit);
-    this._gl.bindTexture(this._target, this.texture);
+    this._gl.bindTexture(this._target, this.texture);      
+    // WebGL2
+    // this._gl.bindSampler(this._unit, this._sampler);
   }
   
   destroy() {
@@ -304,10 +319,14 @@ export class TextureArrayInfo extends Texture {
   constructor (gl: WebGLRenderingContext, 
     program: WebGLProgram,
     name: string,
-    type: SamplerType,
     unit: number,
-    public readonly textures: WebGLTexture[]) { 
-    super(gl, program, name, type, unit);
+    type: SamplerType,
+    public readonly textures: WebGLTexture[],      
+    // sampler?: WebGLSampler,
+  ) { 
+    super(gl, program, name, unit, type);
+    // WebGL2  
+    // super(gl, program, name, unit, type, sampler);    
   }
   
   set() {
@@ -318,8 +337,11 @@ export class TextureArrayInfo extends Texture {
     this._gl.uniform1iv(location, units);
 
     this.textures.forEach((x, i) => {
-      this._gl.activeTexture(textureTypes.TEXTURE0 + units[i]);
+      const unit = textureTypes.TEXTURE0 + units[i];
+      this._gl.activeTexture(unit);
       this._gl.bindTexture(this._target, x);
+      // WebGL2
+      // this._gl.bindSampler(unit, this._sampler);
     });
   }
  
