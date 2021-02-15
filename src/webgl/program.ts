@@ -1,8 +1,12 @@
 /* eslint-disable no-bitwise */
-import { Mat, Vec } from "../math/common";
+import { isPowerOf2, Mat, Vec } from "../math/common";
 import { Attribute, BufferInfo, BufferInfoOptions, ConstantInfo, IndexInfo } from "./attributes";
-import { shaderTypes, ShaderType, numberTypes, TypedArray, UniformType, uniformFloatTypes, uniformIntTypes, IndexType } from "./common";
-import { Uniform, UniformFloatArrayInfo, UniformFloatInfo, UniformIntArrayInfo, UniformIntInfo } from "./uniforms";
+import { shaderTypes, ShaderType, numberTypes, TypedArray, 
+  UniformType, uniformFloatTypes, uniformIntTypes, 
+  SamplerType, samplerTypes, TexelFormat, TexelType, texelTypes } from "./common";
+import { TextureArrayInfo, TextureInfo, Uniform, 
+  UniformFloatArrayInfo, UniformFloatInfo, 
+  UniformIntArrayInfo, UniformIntInfo } from "./uniforms";
 
 export class AnimationProgram {  
   protected readonly _extIndexed: OES_element_index_uint;
@@ -105,7 +109,7 @@ export class AnimationProgram {
   
   //#region attributes
   setConstantScalarAttribute(name: string, s: number) {
-    if (isNaN(s)) {
+    if (!name || isNaN(s)) {
       return;
     }
     const constant = new ConstantInfo(this._gl, this._program, name, new Float32Array([s]));
@@ -113,7 +117,7 @@ export class AnimationProgram {
   }
 
   setConstantVecAttribute(name: string, v: Vec) {
-    if (!v) {
+    if (!name || !v) {
       return;
     }
     const constant = new ConstantInfo(this._gl, this._program, name, v.toFloatArray());
@@ -121,7 +125,7 @@ export class AnimationProgram {
   }
 
   setConstantMatAttribute(name: string, m: Mat) {
-    if (!m) {
+    if (!name || !m) {
       return;
     }
     const constant = new ConstantInfo(this._gl, this._program, name, m.toFloatArray());
@@ -129,7 +133,7 @@ export class AnimationProgram {
   }
 
   setBufferAttribute(name: string, data: TypedArray, options?: BufferInfoOptions) {
-    if (!data?.length) {
+    if (!name || !data?.length) {
       return;
     }
     const buffer = new BufferInfo(this._gl, this._program, name,
@@ -151,6 +155,10 @@ export class AnimationProgram {
   }
   
   updateBufferAttribute(name: string, data: TypedArray, offset: number): void { 
+    if (!name || !data) {
+      return;
+    }
+
     const attribute = this._attributes.get(name);
     if (!(attribute instanceof BufferInfo)) {
       return;
@@ -181,7 +189,7 @@ export class AnimationProgram {
   }
   
   setBoolArrayUniform(name: string, data: boolean[]) {
-    if (!data?.length) {
+    if (!name || !data?.length) {
       return;
     }
     const values = new Int32Array(data.length);
@@ -196,13 +204,17 @@ export class AnimationProgram {
 
   //#region int
   setIntUniform(name: string, value: number) {
+    if (!name || isNaN(value)) {
+      return;
+    }
+
     const uniform = new UniformIntInfo(this._gl, this._program, 
       name, numberTypes.INT, value);
     this.setUniform(uniform);
   }
   
   setIntArrayUniform(name: string, data: Int32Array) {
-    if (!data?.length) {
+    if (!name || !data?.length) {
       return;
     }
     const uniform = new UniformIntArrayInfo(this._gl, this._program, 
@@ -211,7 +223,7 @@ export class AnimationProgram {
   }
 
   setIntVecUniform(name: string, data: Vec) {
-    if (!data) {
+    if (!name || !data) {
       return;
     }
     let type: UniformType;
@@ -237,13 +249,17 @@ export class AnimationProgram {
   
   //#region float
   setFloatUniform(name: string, value: number) {
+    if (!name || isNaN(value)) {
+      return;
+    }
+
     const uniform = new UniformFloatInfo(this._gl, this._program, 
       name, value);
     this.setUniform(uniform);
   }
   
   setFloatArrayUniform(name: string, data: Float32Array) {
-    if (!data?.length) {
+    if (!name || !data?.length) {
       return;
     }
     const uniform = new UniformFloatArrayInfo(this._gl, this._program, 
@@ -252,7 +268,7 @@ export class AnimationProgram {
   }
   
   setFloatVecUniform(name: string, data: Vec) {
-    if (!data) {
+    if (!name || !data) {
       return;
     }
     let type: UniformType;
@@ -276,7 +292,7 @@ export class AnimationProgram {
   }
 
   setFloatMatUniform(name: string, data: Mat) {
-    if (!data) {
+    if (!name || !data) {
       return;
     }
     let type: UniformType;
@@ -301,12 +317,118 @@ export class AnimationProgram {
   //#endregion
 
   //#region texture
-  setTexture(name: string, texture: WebGLTexture) {
-    // TODO: implement
+  createTexture(data: Uint8Array | Uint16Array, type: SamplerType, 
+    texelFormal: TexelFormat, texelType: TexelType,
+    width: number, height: number): WebGLTexture {
+
+    if (data instanceof Uint8Array) {
+      if (texelType !== texelTypes.UNSIGNED_BYTE) {
+        throw new Error("Invalid texel type");
+      }
+    } else if (!(data instanceof Uint16Array)) {
+      throw new Error("Invalid data array type");
+    }
+
+    if (data.length !== width * height) {      
+      throw new Error("Invalid data array length");
+    }
+
+    const gl = this._gl;
+    
+    const texture = gl.createTexture();
+    gl.bindTexture(type, texture);
+    gl.texImage2D(type, 0, texelFormal, width, height, 0, 
+      texelFormal, texelType, data);
+    
+    if (isPowerOf2(width) && isPowerOf2(height)) {
+      gl.generateMipmap(type);
+    } else {
+      gl.texParameteri(type, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(type, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(type, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
+
+    return texture;
+  }
+  
+  loadTexture(url: string, fallback = new Uint8Array([0, 0, 0, 255])): WebGLTexture {
+    if (!url || !(fallback instanceof Uint8Array)) {
+      throw new Error("Invalid arguments");
+    }
+
+    const gl = this._gl;
+
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+  
+    const level = 0;
+    const internalFormat = gl.RGBA;
+    const width = 1;
+    const height = 1;
+    const border = 0;
+    const srcFormat = gl.RGBA;
+    const srcType = gl.UNSIGNED_BYTE;
+    gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+      width, height, border, srcFormat, srcType,
+      fallback);
+  
+    const image = new Image();
+    image.onload = function() {
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+        srcFormat, srcType, image);
+  
+      if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+        gl.generateMipmap(gl.TEXTURE_2D);
+      } else {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      }
+    };
+    image.src = url;
+
+    return texture;
   }
 
-  setTextureArray(name: string, textures: WebGLTexture[]) {
-    // TODO: implement
+  setTexture(name: string, texture: WebGLTexture, 
+    type: SamplerType = samplerTypes.SAMPLER_2D, unit = 0) {
+    if (!name || !texture) {
+      return;
+    }
+
+    const uniform = new TextureInfo(this._gl, this._program, name, unit, texture, type);
+    this._uniforms.set(name, uniform);
+  }
+
+  setTextureArray(name: string, textures: WebGLTexture[], 
+    type: SamplerType = samplerTypes.SAMPLER_2D, unit = 0) {
+    if (!name || !textures?.length) {
+      return;
+    }
+
+    const uniform = new TextureArrayInfo(this._gl, this._program, name, unit, textures, type);
+    this._uniforms.set(name, uniform);
+  }
+  
+  createAndSetTexture(name: string, data: Uint8Array | Uint16Array, type: SamplerType, 
+    texelFormal: TexelFormat, texelType: TexelType,
+    width: number, height: number, unit = 0) {     
+    if (!name) {
+      return;
+    }
+
+    const texture = this.createTexture(data, type, texelFormal, texelType, width, height);
+    this.setTexture(name, texture, type, unit);
+  }
+
+  loadAndSetTexture(name: string, url: string, unit = 0, fallback = new Uint8Array([0, 0, 0, 255])) {
+    if (!name) {
+      return;
+    }
+
+    const texture = this.loadTexture(url, fallback);
+    this.setTexture(name, texture, samplerTypes.SAMPLER_2D, unit);
   }
   //#endregion
 

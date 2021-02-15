@@ -660,7 +660,7 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
   private readonly _fragmentShader = `
     #pragma vscode_glsllint_stage : frag  
 
-    precision mediump float;
+    precision highp float;
 
     void main() {
       gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);

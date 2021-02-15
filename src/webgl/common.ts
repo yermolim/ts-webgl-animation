@@ -22,6 +22,22 @@ export const textureTypes = {
   TEXTURE_CUBE_MAP: 0x8513,
 } as const;
 export type TextureType = typeof textureTypes[keyof typeof textureTypes];
+export const texelFormats = {
+  RGB: 0x1907,
+  RGBA: 0x1908,
+  ALPHA: 0x1906,
+  LUMINANCE: 0x1909,
+  LUMINANCE_ALPHA: 0x190A,
+  DEPTH_COMPONENT: 0x1902,
+} as const;
+export type TexelFormat = typeof texelFormats[keyof typeof texelFormats];
+export const texelTypes = {
+  UNSIGNED_BYTE: 0x1401,
+  UNSIGNED_SHORT_4_4_4_4: 0x8033,
+  UNSIGNED_SHORT_5_5_5_1: 0x8034,
+  UNSIGNED_SHORT_5_6_5: 0x8363,
+} as const;
+export type TexelType = typeof texelTypes[keyof typeof texelTypes];
 
 export const numberTypes = {
   BYTE: 0x1400,

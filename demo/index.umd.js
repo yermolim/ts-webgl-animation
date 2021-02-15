@@ -8,6 +8,10 @@
         return crypto.getRandomValues(new Uint32Array(4)).join("-");
     }
 
+    function isPowerOf2(value) {
+        return (value & (value - 1)) === 0;
+    }
+
     class Vec2 {
         constructor(x = 0, y = 0) {
             this.length = 2;
@@ -193,6 +197,19 @@
         UNIFORM_BUFFER: 0x8a11,
         TRANSFORM_FEEDBACK_BUFFER: 0x8c8e,
     };
+    const textureTypes = {
+        TEXTURE0: 0x84c0,
+        TEXTURE_2D: 0x0DE1,
+        TEXTURE_2D_ARRAY: 0x8C1A,
+        TEXTURE_3D: 0x806F,
+        TEXTURE_CUBE_MAP: 0x8513,
+    };
+    const texelTypes = {
+        UNSIGNED_BYTE: 0x1401,
+        UNSIGNED_SHORT_4_4_4_4: 0x8033,
+        UNSIGNED_SHORT_5_5_5_1: 0x8034,
+        UNSIGNED_SHORT_5_6_5: 0x8363,
+    };
     const numberTypes = {
         BYTE: 0x1400,
         UNSIGNED_BYTE: 0x1401,
@@ -230,6 +247,23 @@
         BOOL_VEC2: 0x8B57,
         BOOL_VEC3: 0x8B58,
         BOOL_VEC4: 0x8B59,
+    };
+    const samplerTypes = {
+        SAMPLER_2D: 0x8B5E,
+        SAMPLER_CUBE: 0x8B60,
+        SAMPLER_3D: 0x8B5F,
+        SAMPLER_2D_SHADOW: 0x8B62,
+        SAMPLER_2D_ARRAY: 0x8DC1,
+        SAMPLER_2D_ARRAY_SHADOW: 0x8DC4,
+        SAMPLER_CUBE_SHADOW: 0x8DC5,
+        INT_SAMPLER_2D: 0x8DCA,
+        INT_SAMPLER_3D: 0x8DCB,
+        INT_SAMPLER_CUBE: 0x8DCC,
+        INT_SAMPLER_2D_ARRAY: 0x8DCF,
+        UNSIGNED_INT_SAMPLER_2D: 0x8DD2,
+        UNSIGNED_INT_SAMPLER_3D: 0x8DD3,
+        UNSIGNED_INT_SAMPLER_CUBE: 0x8DD4,
+        UNSIGNED_INT_SAMPLER_2D_ARRAY: 0x8DD7,
     };
     const bufferUsageTypes = {
         STATIC_DRAW: 0x88E4,
@@ -326,10 +360,10 @@
         }
     }
     class BufferInfo extends Attribute {
-        constructor(gl, program, name, data, options) {
+        constructor(gl, program, name, data, options, instancedExt) {
             super(gl, program, name);
             this._type = getNumberTypeByArray(data);
-            const { usage, vectorSize, vectorNumber, stride, offset, normalize } = Object.assign(BufferInfo.defaultOptions, options);
+            const { usage, vectorSize, vectorNumber, stride, offset, normalize, divisor, divisor: instancedStep } = Object.assign(BufferInfo.defaultOptions, options);
             let minStride = 0;
             if (vectorNumber !== 1) {
                 minStride = vectorSize * vectorNumber * numberSizes[this.type];
@@ -343,6 +377,8 @@
             this._offset = offset;
             this._stride = Math.min(255, Math.max(minStride, stride));
             this._normalize = normalize;
+            this._divisor = divisor;
+            this._instancedExt = instancedExt;
             this._buffer = gl.createBuffer();
             gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);
             gl.bufferData(bufferTypes.ARRAY_BUFFER, data, usage);
@@ -356,6 +392,9 @@
             for (let i = 0, j = this._location; i < this._vectorNumber; i++, j++) {
                 this._gl.enableVertexAttribArray(j);
                 this._gl.vertexAttribPointer(j, this._vectorSize, this._type, this._normalize, this._stride, this._offset + i * this._vectorOffset);
+                if (this._divisor && this._instancedExt) {
+                    this._instancedExt.vertexAttribDivisorANGLE(this._location, this._divisor);
+                }
             }
         }
         destroy() {
@@ -563,6 +602,65 @@
         destroy() {
         }
     }
+    class Texture extends Uniform {
+        constructor(gl, program, name, unit, type, sampler) {
+            super(gl, program, name);
+            this._sampler = sampler;
+            switch (this._type) {
+                case samplerTypes.SAMPLER_2D:
+                case samplerTypes.SAMPLER_2D_SHADOW:
+                case samplerTypes.INT_SAMPLER_2D:
+                case samplerTypes.UNSIGNED_INT_SAMPLER_2D:
+                    this._target = textureTypes.TEXTURE_2D;
+                    break;
+                case samplerTypes.SAMPLER_CUBE:
+                case samplerTypes.SAMPLER_CUBE_SHADOW:
+                case samplerTypes.INT_SAMPLER_CUBE:
+                case samplerTypes.UNSIGNED_INT_SAMPLER_CUBE:
+                    this._target = textureTypes.TEXTURE_CUBE_MAP;
+                    break;
+                default:
+                    throw new Error(`Unsupported sampler type ${type}`);
+            }
+            this._type = type;
+            this._unit = unit;
+        }
+    }
+    class TextureInfo extends Texture {
+        constructor(gl, program, name, unit, texture, type, sampler) {
+            super(gl, program, name, unit, type, sampler);
+            this._texture = texture;
+        }
+        set() {
+            this._gl.uniform1i(location, this._unit);
+            this._gl.activeTexture(textureTypes.TEXTURE0 + this._unit);
+            this._gl.bindTexture(this._target, this._texture);
+        }
+        destroy() {
+            this._gl.deleteTexture(this._texture);
+        }
+    }
+    class TextureArrayInfo extends Texture {
+        constructor(gl, program, name, unit, textures, type, sampler) {
+            super(gl, program, name, unit, type, sampler);
+            this._textures = textures;
+        }
+        set() {
+            const units = new Int32Array(this._textures.length);
+            for (let i = 0; i < this._textures.length; i++) {
+                units[i] = this._unit + i;
+            }
+            this._gl.uniform1iv(location, units);
+            this._textures.forEach((x, i) => {
+                const unit = textureTypes.TEXTURE0 + units[i];
+                this._gl.activeTexture(unit);
+                this._gl.bindTexture(this._target, x);
+            });
+        }
+        destroy() {
+            this._textures.forEach(x => this._gl.deleteTexture(x));
+        }
+    }
 
     class AnimationProgram {
         constructor(gl, vertexShaderSource, fragmentShaderSource) {
@@ -638,28 +736,28 @@
             this._gl.deleteShader(this._fragmentShader);
         }
         setConstantScalarAttribute(name, s) {
-            if (isNaN(s)) {
+            if (!name || isNaN(s)) {
                 return;
             }
             const constant = new ConstantInfo(this._gl, this._program, name, new Float32Array([s]));
             this.setAttribute(constant);
         }
         setConstantVecAttribute(name, v) {
-            if (!v) {
+            if (!name || !v) {
                 return;
             }
             const constant = new ConstantInfo(this._gl, this._program, name, v.toFloatArray());
             this.setAttribute(constant);
         }
         setConstantMatAttribute(name, m) {
-            if (!m) {
+            if (!name || !m) {
                 return;
             }
             const constant = new ConstantInfo(this._gl, this._program, name, m.toFloatArray());
             this.setAttribute(constant);
         }
         setBufferAttribute(name, data, options) {
-            if (!data?.length) {
+            if (!name || !data?.length) {
                 return;
             }
             const buffer = new BufferInfo(this._gl, this._program, name, data, options);
@@ -676,6 +774,9 @@
             this.setAttribute(buffer);
         }
         updateBufferAttribute(name, data, offset) {
+            if (!name || !data) {
+                return;
+            }
             const attribute = this._attributes.get(name);
             if (!(attribute instanceof BufferInfo)) {
                 return;
@@ -697,7 +798,7 @@
             this.setUniform(uniform);
         }
         setBoolArrayUniform(name, data) {
-            if (!data?.length) {
+            if (!name || !data?.length) {
                 return;
             }
             const values = new Int32Array(data.length);
@@ -708,18 +809,21 @@
             this.setUniform(uniform);
         }
         setIntUniform(name, value) {
+            if (!name || isNaN(value)) {
+                return;
+            }
             const uniform = new UniformIntInfo(this._gl, this._program, name, numberTypes.INT, value);
             this.setUniform(uniform);
         }
         setIntArrayUniform(name, data) {
-            if (!data?.length) {
+            if (!name || !data?.length) {
                 return;
             }
             const uniform = new UniformIntArrayInfo(this._gl, this._program, name, numberTypes.INT, data);
             this.setUniform(uniform);
         }
         setIntVecUniform(name, data) {
-            if (!data) {
+            if (!name || !data) {
                 return;
             }
             let type;
@@ -740,18 +844,21 @@
             this.setUniform(uniform);
         }
         setFloatUniform(name, value) {
+            if (!name || isNaN(value)) {
+                return;
+            }
             const uniform = new UniformFloatInfo(this._gl, this._program, name, value);
             this.setUniform(uniform);
         }
         setFloatArrayUniform(name, data) {
-            if (!data?.length) {
+            if (!name || !data?.length) {
                 return;
             }
             const uniform = new UniformFloatArrayInfo(this._gl, this._program, name, numberTypes.FLOAT, data);
             this.setUniform(uniform);
         }
         setFloatVecUniform(name, data) {
-            if (!data) {
+            if (!name || !data) {
                 return;
             }
             let type;
@@ -772,7 +879,7 @@
             this.setUniform(uniform);
         }
         setFloatMatUniform(name, data) {
-            if (!data) {
+            if (!name || !data) {
                 return;
             }
             let type;
@@ -792,9 +899,90 @@
             const uniform = new UniformFloatArrayInfo(this._gl, this._program, name, type, data.toFloatArray());
             this.setUniform(uniform);
         }
-        setTexture() {
+        createTexture(data, type, texelFormal, texelType, width, height) {
+            if (data instanceof Uint8Array) {
+                if (texelType !== texelTypes.UNSIGNED_BYTE) {
+                    throw new Error("Invalid texel type");
+                }
+            }
+            else if (!(data instanceof Uint16Array)) {
+                throw new Error("Invalid data array type");
+            }
+            if (data.length !== width * height) {
+                throw new Error("Invalid data array length");
+            }
+            const gl = this._gl;
+            const texture = gl.createTexture();
+            gl.bindTexture(type, texture);
+            gl.texImage2D(type, 0, texelFormal, width, height, 0, texelFormal, texelType, data);
+            if (isPowerOf2(width) && isPowerOf2(height)) {
+                gl.generateMipmap(type);
+            }
+            else {
+                gl.texParameteri(type, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(type, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(type, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            }
+            return texture;
         }
-        setTextureArray() {
+        loadTexture(url, fallback = new Uint8Array([0, 0, 0, 255])) {
+            if (!url || !(fallback instanceof Uint8Array)) {
+                throw new Error("Invalid arguments");
+            }
+            const gl = this._gl;
+            const texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            const level = 0;
+            const internalFormat = gl.RGBA;
+            const width = 1;
+            const height = 1;
+            const border = 0;
+            const srcFormat = gl.RGBA;
+            const srcType = gl.UNSIGNED_BYTE;
+            gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, width, height, border, srcFormat, srcType, fallback);
+            const image = new Image();
+            image.onload = function () {
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image);
+                if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+                    gl.generateMipmap(gl.TEXTURE_2D);
+                }
+                else {
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                }
+            };
+            image.src = url;
+            return texture;
+        }
+        setTexture(name, texture, type = samplerTypes.SAMPLER_2D, unit = 0) {
+            if (!name || !texture) {
+                return;
+            }
+            const uniform = new TextureInfo(this._gl, this._program, name, unit, texture, type);
+            this._uniforms.set(name, uniform);
+        }
+        setTextureArray(name, textures, type = samplerTypes.SAMPLER_2D, unit = 0) {
+            if (!name || !textures?.length) {
+                return;
+            }
+            const uniform = new TextureArrayInfo(this._gl, this._program, name, unit, textures, type);
+            this._uniforms.set(name, uniform);
+        }
+        createAndSetTexture(name, data, type, texelFormal, texelType, width, height, unit = 0) {
+            if (!name) {
+                return;
+            }
+            const texture = this.createTexture(data, type, texelFormal, texelType, width, height);
+            this.setTexture(name, texture, type, unit);
+        }
+        loadAndSetTexture(name, url, unit = 0, fallback = new Uint8Array([0, 0, 0, 255])) {
+            if (!name) {
+                return;
+            }
+            const texture = this.loadTexture(url, fallback);
+            this.setTexture(name, texture, samplerTypes.SAMPLER_2D, unit);
         }
         deleteUniform(name) {
             const uniform = this._uniforms.get(name);
@@ -952,7 +1140,7 @@
             this._fragmentShader = `
     #pragma vscode_glsllint_stage : frag  
 
-    precision mediump float;
+    precision highp float;
 
     void main() {
       gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
