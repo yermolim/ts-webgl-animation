@@ -181,6 +181,42 @@ class DotAnimationOptions {
     }
 }
 
+class Rect {
+    constructor(size = 1) {
+        this._positions = new Float32Array([
+            -size, -size, 0, 1,
+            size, -size, 0, 1,
+            -size, size, 0, 1,
+            size, size, 0, 1,
+        ]);
+        this._normals = new Float32Array([
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+        ]);
+        this._uvs = new Float32Array([
+            0, 0,
+            1, 0,
+            0, 1,
+            1, 1,
+        ]);
+        this._indices = new Uint32Array([0, 1, 2, 2, 1, 3]);
+    }
+    get positions() {
+        return this._positions;
+    }
+    get normals() {
+        return this._normals;
+    }
+    get uvs() {
+        return this._uvs;
+    }
+    get indices() {
+        return this._indices;
+    }
+}
+
 const shaderTypes = {
     FRAGMENT_SHADER: 0x8b30,
     VERTEX_SHADER: 0x8b31,
@@ -422,7 +458,7 @@ class IndexInfo extends Attribute {
         }
         this._type = type;
         this._buffer = gl.createBuffer();
-        this._gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);
+        this._gl.bindBuffer(bufferTypes.ELEMENT_ARRAY_BUFFER, this._buffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, gl.STATIC_DRAW);
     }
     set() {
@@ -964,14 +1000,14 @@ class AnimationProgram {
         const uniform = new TextureArrayInfo(this._gl, this._program, name, unit, textures, type);
         this._uniforms.set(name, uniform);
     }
-    createAndSetTexture(name, data, type, texelFormal, texelType, width, height, unit = 0) {
+    createAndSet2dTexture(name, data, type, texelFormal, texelType, width, height, unit = 0) {
         if (!name) {
             return;
         }
         const texture = this.createTexture(data, type, texelFormal, texelType, width, height);
         this.setTexture(name, texture, type, unit);
     }
-    loadAndSetTexture(name, url, unit = 0, fallback = new Uint8Array([0, 0, 0, 255])) {
+    loadAndSet2dTexture(name, url, unit = 0, fallback = new Uint8Array([0, 0, 0, 255])) {
         if (!name) {
             return;
         }
@@ -1126,8 +1162,14 @@ class DotWebGlAnimationControl {
     #pragma vscode_glsllint_stage : vert
 
     attribute vec4 position;
+    attribute vec4 color;
+
+    uniform vec2 resolution;
+    
+    varying vec4 vColor;
 
     void main() {
+      vColor = color;
       gl_Position = position;
     }
   `;
@@ -1136,22 +1178,34 @@ class DotWebGlAnimationControl {
 
     precision highp float;
 
+    varying vec4 vColor;
+
     void main() {
-      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      gl_FragColor = vColor;
     }
   `;
         this._options = options;
         this._gl = gl;
-        if (this._gl.isContextLost()) {
-            this._gl.getExtension("WEBGL_lose_context").restoreContext();
-        }
+        this.fixContext();
         this._program = new AnimationProgram(gl, this._vertexShader, this._fragmentShader);
-        this._tempData = new Float32Array([0.1, 0.5, 0, 1, 0.3, 0.1, 0, 1, 0.3, 0.5, 0, 1]);
-        this._program.setBufferAttribute("position", this._tempData, { vectorSize: 4 });
-        this._program.triangleCount = 1;
+        const initialResolution = new Vec2(this._gl.canvas.width, this._gl.canvas.height);
+        this._program.setIntVecUniform("resolution", initialResolution);
+        const rect = new Rect(0.5);
+        this._program.setBufferAttribute("position", rect.positions, { vectorSize: 4 });
+        this._program.setBufferAttribute("color", new Float32Array([
+            1, 0, 0, 1,
+            0, 1, 0, 1,
+            0, 0, 1, 1,
+            1, 1, 1, 1,
+        ]), { vectorSize: 4 });
+        this._program.setIndexAttribute(rect.indices);
+        this._program.triangleCount = 2;
     }
     prepareNextFrame(resolution, pointerPosition, pointerDown, elapsedTime) {
-        this.resize(resolution);
+        const resChanged = this.resize(resolution);
+        if (resChanged) {
+            this._program.setIntVecUniform("resolution", resolution);
+        }
     }
     renderFrame() {
         this._program.render();
@@ -1164,11 +1218,20 @@ class DotWebGlAnimationControl {
         this._gl.getExtension("WEBGL_lose_context").loseContext();
     }
     resize(resolution) {
+        let changed = false;
         if (this._gl.canvas.width !== resolution.x) {
             this._gl.canvas.width = resolution.x;
+            changed = true;
         }
         if (this._gl.canvas.height !== resolution.y) {
             this._gl.canvas.height = resolution.y;
+            changed || (changed = true);
+        }
+        return changed;
+    }
+    fixContext() {
+        if (this._gl.isContextLost()) {
+            this._gl.getExtension("WEBGL_lose_context").restoreContext();
         }
     }
 }

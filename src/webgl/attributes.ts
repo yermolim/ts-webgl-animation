@@ -241,7 +241,7 @@ export class IndexInfo<T extends TypedArray> extends Attribute {
     this._type = type;
 
     this._buffer = gl.createBuffer();
-    this._gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);  
+    this._gl.bindBuffer(bufferTypes.ELEMENT_ARRAY_BUFFER, this._buffer);  
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, gl.STATIC_DRAW);
   }
 

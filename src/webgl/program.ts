@@ -411,7 +411,7 @@ export class AnimationProgram {
     this._uniforms.set(name, uniform);
   }
   
-  createAndSetTexture(name: string, data: Uint8Array | Uint16Array, type: SamplerType, 
+  createAndSet2dTexture(name: string, data: Uint8Array | Uint16Array, type: SamplerType, 
     texelFormal: TexelFormat, texelType: TexelType,
     width: number, height: number, unit = 0) {     
     if (!name) {
@@ -422,7 +422,7 @@ export class AnimationProgram {
     this.setTexture(name, texture, type, unit);
   }
 
-  loadAndSetTexture(name: string, url: string, unit = 0, fallback = new Uint8Array([0, 0, 0, 255])) {
+  loadAndSet2dTexture(name: string, url: string, unit = 0, fallback = new Uint8Array([0, 0, 0, 255])) {
     if (!name) {
       return;
     }

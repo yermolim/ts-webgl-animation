@@ -5,6 +5,7 @@ import { IPositionObject,
 import { getRandomInt, getRandomFloat, getDistance2D } from "./math/common";
 import { Vec2 } from "./math/vec2";
 import { DotAnimationOptions } from "./options";
+import { Rect } from "./webgl/primitives/rect";
 import { AnimationProgram } from "./webgl/program";
 
 function drawCircle(ctx: CanvasRenderingContext2D,
@@ -651,8 +652,14 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
     #pragma vscode_glsllint_stage : vert
 
     attribute vec4 position;
+    attribute vec4 color;
+
+    uniform vec2 resolution;
+    
+    varying vec4 vColor;
 
     void main() {
+      vColor = color;
       gl_Position = position;
     }
   `;
@@ -662,8 +669,10 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
 
     precision highp float;
 
+    varying vec4 vColor;
+
     void main() {
-      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      gl_FragColor = vColor;
     }
   `;
   
@@ -671,28 +680,36 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
   private _gl: WebGLRenderingContext;
 
   private _program: AnimationProgram;
-  
-  private _tempData: Float32Array;
 
   constructor(gl: WebGLRenderingContext, options: IAnimationOptions) {
     this._options = options;
     this._gl = gl;
 
-    // restore context if lost
-    if (this._gl.isContextLost()) {
-      this._gl.getExtension("WEBGL_lose_context").restoreContext();
-    }
+    this.fixContext();
     this._program = new AnimationProgram(gl, this._vertexShader, this._fragmentShader);
 
-    // set constant attributes if not set (first time)
+    // set uniforms and attributes if not set (first time)
+    const initialResolution = new Vec2(this._gl.canvas.width, this._gl.canvas.height);
+    this._program.setIntVecUniform("resolution", initialResolution);
+    
     // DEBUG
-    this._tempData = new Float32Array([0.1, 0.5, 0, 1, 0.3, 0.1, 0, 1, 0.3, 0.5, 0, 1]);
-    this._program.setBufferAttribute("position", this._tempData, {vectorSize: 4});
-    this._program.triangleCount = 1;
+    const rect = new Rect(0.5);  
+    this._program.setBufferAttribute("position", rect.positions, {vectorSize: 4});
+    this._program.setBufferAttribute("color", new Float32Array([
+      1, 0, 0, 1,
+      0, 1, 0, 1,
+      0, 0, 1, 1,
+      1, 1, 1, 1,
+    ]), {vectorSize: 4});
+    this._program.setIndexAttribute(rect.indices);
+    this._program.triangleCount = 2;
   }
 
   prepareNextFrame(resolution: Vec2, pointerPosition: Vec2, pointerDown: boolean, elapsedTime: number) {
-    this.resize(resolution);
+    const resChanged = this.resize(resolution);
+    if (resChanged) {      
+      this._program.setIntVecUniform("resolution", resolution);
+    }
 
     // calc uniforms
     // set uniforms
@@ -701,7 +718,6 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
   }
 
   renderFrame() {
-    // DEBUG
     this._program.render();
   }
 
@@ -715,12 +731,23 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
     this._gl.getExtension("WEBGL_lose_context").loseContext();
   }
 
-  private resize(resolution: Vec2) {
+  private resize(resolution: Vec2): boolean {
+    let changed = false;
     if (this._gl.canvas.width !== resolution.x) {
       this._gl.canvas.width = resolution.x;
+      changed = true;
     }
     if (this._gl.canvas.height !== resolution.y) {
       this._gl.canvas.height = resolution.y;
+      changed ||= true;
+    }
+    return changed;
+  }
+
+  private fixContext() { 
+    // restore context if lost   
+    if (this._gl.isContextLost()) {
+      this._gl.getExtension("WEBGL_lose_context").restoreContext();
     }
   }
 }
