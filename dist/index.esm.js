@@ -181,7 +181,7 @@ class DotAnimationOptions {
     }
 }
 
-class Rect {
+class Square {
     constructor(size = 1) {
         this._positions = new Float32Array([
             -size, -size, 0, 1,
@@ -1190,7 +1190,7 @@ class DotWebGlAnimationControl {
         this._program = new AnimationProgram(gl, this._vertexShader, this._fragmentShader);
         const initialResolution = new Vec2(this._gl.canvas.width, this._gl.canvas.height);
         this._program.setIntVecUniform("resolution", initialResolution);
-        const rect = new Rect(0.5);
+        const rect = new Square(0.5);
         this._program.setBufferAttribute("position", rect.positions, { vectorSize: 4 });
         this._program.setBufferAttribute("color", new Float32Array([
             1, 0, 0, 1,

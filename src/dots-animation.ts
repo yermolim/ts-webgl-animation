@@ -5,7 +5,7 @@ import { IPositionObject,
 import { getRandomInt, getRandomFloat, getDistance2D } from "./math/common";
 import { Vec2 } from "./math/vec2";
 import { DotAnimationOptions } from "./options";
-import { Rect } from "./webgl/primitives/rect";
+import { Square } from "./webgl/primitives/square";
 import { AnimationProgram } from "./webgl/program";
 
 function drawCircle(ctx: CanvasRenderingContext2D,
@@ -693,7 +693,7 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
     this._program.setIntVecUniform("resolution", initialResolution);
     
     // DEBUG
-    const rect = new Rect(0.5);  
+    const rect = new Square(0.5);  
     this._program.setBufferAttribute("position", rect.positions, {vectorSize: 4});
     this._program.setBufferAttribute("color", new Float32Array([
       1, 0, 0, 1,

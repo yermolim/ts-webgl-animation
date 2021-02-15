@@ -1,6 +1,6 @@
 import { Primitive } from "./common";
 
-export class Rect implements Primitive { 
+export class Square implements Primitive { 
   protected _normals: Float32Array;
   protected _positions: Float32Array;
   protected _uvs: Float32Array;
