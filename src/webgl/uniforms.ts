@@ -1,6 +1,5 @@
-import { GlType, numberTypes, otherDataTypes, 
-  SamplerType, samplerTypes, textureTypes,
-  UniformFloatType, uniformFloatTypes, 
+import { numberTypes, SamplerType, samplerTypes, textureTypes,
+  UniformFloatType, uniformFloatTypes,
   UniformIntType, uniformIntTypes } from "./common";
 
 export abstract class Uniform {
@@ -19,7 +18,7 @@ export abstract class Uniform {
   protected constructor(gl: WebGLRenderingContext, 
     program: WebGLProgram, name: string) {    
     this._gl = gl;
-    this._location = gl.getUniformLocation(program, this._name);
+    this._location = gl.getUniformLocation(program, name);
     this._name = name;
   }
 
@@ -246,7 +245,7 @@ export abstract class Texture extends Uniform {
     super(gl, program, name);   
     this._sampler = sampler; 
 
-    switch (this._type) {
+    switch (type) {
       case samplerTypes.SAMPLER_2D:
       case samplerTypes.SAMPLER_2D_SHADOW:
       case samplerTypes.INT_SAMPLER_2D:
@@ -296,7 +295,7 @@ export class TextureInfo extends Texture {
   }
   
   set() {
-    this._gl.uniform1i(location, this._unit);
+    this._gl.uniform1i(this._location, this._unit);
 
     this._gl.activeTexture(textureTypes.TEXTURE0 + this._unit);
     this._gl.bindTexture(this._target, this._texture);      
@@ -332,7 +331,7 @@ export class TextureArrayInfo extends Texture {
     for (let i = 0; i < this._textures.length; i++) {
       units[i] = this._unit + i;
     }    
-    this._gl.uniform1iv(location, units);
+    this._gl.uniform1iv(this._location, units);
 
     this._textures.forEach((x, i) => {
       const unit = textureTypes.TEXTURE0 + units[i];

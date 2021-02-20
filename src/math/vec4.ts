@@ -52,6 +52,9 @@ export class Vec4 implements Vec {
   }
 
   static equals(v1: Vec4, v2: Vec4, precision = 6): boolean {
+    if (!v1) {
+      return false;
+    }
     return v1.equals(v2, precision);
   }
 
@@ -158,6 +161,9 @@ export class Vec4 implements Vec {
   }
 
   equals(v: Vec4, precision = 6): boolean {
+    if (!v) {
+      return false;
+    }
     return +this.x.toFixed(precision) === +v.x.toFixed(precision)
       && +this.y.toFixed(precision) === +v.y.toFixed(precision)
       && +this.z.toFixed(precision) === +v.z.toFixed(precision)

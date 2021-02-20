@@ -77,6 +77,8 @@ export class AnimationProgram {
   } 
 
   render(clear = true) {
+    this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
+
     if (clear) {
       this.clear();
     }
@@ -94,6 +96,7 @@ export class AnimationProgram {
     this._gl.cullFace(this._gl.BACK);
     this._gl.enable(this._gl.CULL_FACE);
     this._gl.enable(this._gl.DEPTH_TEST);
+
     this._gl.clearColor(0, 0, 0, 0);
     this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
   }
@@ -491,6 +494,8 @@ export class InstancedAnimationProgram extends AnimationProgram {
   } 
 
   render(clear = true) {
+    this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
+    
     if (clear) {
       this.clear();
     }
