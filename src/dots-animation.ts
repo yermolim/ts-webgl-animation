@@ -5,7 +5,7 @@ import { Mat4 } from "./math/mat4";
 import { Vec2 } from "./math/vec2";
 import { DotAnimationOptions } from "./options";
 import { Square } from "./webgl/primitives/square";
-import { AnimationProgram } from "./webgl/program";
+import { AnimationProgram, InstancedAnimationProgram } from "./webgl/program";
 
 class AnimationWebGl implements IAnimation {
   private _options: IAnimationOptions;
@@ -156,16 +156,21 @@ class AnimationWebGl implements IAnimation {
   }
 }
 
+// 
+// 
+
 class DotWebGlAnimationControl implements IWebGlAnimationControl {
   private readonly _vertexShader = `
     #pragma vscode_glsllint_stage : vert
 
-    attribute vec3 aPosition;
     attribute vec4 aColor;
+    attribute vec3 aPosition;
+    attribute mat4 aMatInst;
     attribute vec2 aUv;
+    attribute vec2 aUvInst;
 
     uniform vec2 uResolution;
-
+    uniform int uTexSize;
     uniform mat4 uModel;
     uniform mat4 uView;
     uniform mat4 uProjection;
@@ -175,8 +180,11 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
 
     void main() {
       vColor = aColor;
-      vUv = aUv;
-      gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
+
+      float texSize = float(uTexSize);
+      vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
+
+      gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
     }
   `;
 
@@ -198,7 +206,7 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
   
   private _gl: WebGLRenderingContext;
 
-  private _program: AnimationProgram;
+  private _program: InstancedAnimationProgram;
 
   private _lastResolution = new Vec2();
 
@@ -206,17 +214,19 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
     this._gl = gl;
 
     this.fixContext();
-    this._program = new AnimationProgram(gl, this._vertexShader, this._fragmentShader);
+    this._program = new InstancedAnimationProgram(gl, this._vertexShader, this._fragmentShader);
 
-    // set uniforms and attributes if not set (first time)
+    // set uniforms
     this._program.loadAndSet2dTexture("uTex", "animals-white.png");    
+    this._program.setIntUniform("uTexSize", 8); // atlas row tile count
 
     const modelMatrix = new Mat4();
     this._program.setFloatMatUniform("uModel", modelMatrix);
     const viewMatrix = new Mat4().applyTranslation(0, 0, -2);
     this._program.setFloatMatUniform("uView", viewMatrix);
 
-    const rect = new Square(64);  
+    // set common attributes
+    const rect = new Square(64);
     this._program.setBufferAttribute("aPosition", rect.positions, {vectorSize: 3});
     this._program.setBufferAttribute("aColor", new Float32Array([
       1, 0, 0, 1,
@@ -224,9 +234,37 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
       0, 0, 1, 1,
       1, 1, 1, 1,
     ]), {vectorSize: 4});
-    this._program.setBufferAttribute("aUv", rect.uvs.map(x => x / 8), {vectorSize: 2});
-    this._program.setIndexAttribute(rect.indices);
+
+    this._program.setBufferAttribute("aUv", rect.uvs, {vectorSize: 2});
+    this._program.setIndexAttribute(rect.indices);  
+  
+    // set instance attributes    
+    this._program.setInstancedBufferAttribute("aMatInst",
+      new Float32Array([
+        ...new Mat4().applyTranslation(120, 20, -3).toFloatArray(),
+        ...new Mat4().applyTranslation(0, 0, 0).toFloatArray(),
+        ...new Mat4().applyTranslation(-200, -80, -1).applyRotation("z", Math.PI / 3).toFloatArray(),
+        ...new Mat4().applyTranslation(0, 200, -2).applyRotation("z", Math.PI).toFloatArray(),
+        ...new Mat4().applyTranslation(370, 330, 0).toFloatArray(),
+        ...new Mat4().applyTranslation(-400, 20, -7).applyScaling(3).toFloatArray(),
+        ...new Mat4().applyTranslation(300, 300, -5).toFloatArray(),
+        ...new Mat4().applyTranslation(-200, -200, -1).toFloatArray(),
+      ]), {vectorSize: 4, vectorNumber: 4, divisor: 1});    
+    this._program.setInstancedBufferAttribute("aUvInst",
+      // column, row 
+      new Float32Array([
+        0, 0,
+        1, 0,
+        2, 0,
+        3, 0,
+        0, 1,
+        1, 1,
+        2, 1,
+        3, 1,
+      ]), {vectorSize: 2, divisor: 1});
+
     this._program.triangleCount = 2;
+    this._program.instanceCount = 8;
   }
 
   prepareNextFrame(resolution: Vec2, pointerPosition: Vec2, pointerDown: boolean, elapsedTime: number) {

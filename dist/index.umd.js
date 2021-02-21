@@ -1148,19 +1148,17 @@
         constructor(gl, program, name, data, options, instancedExt) {
             super(gl, program, name);
             this._type = getNumberTypeByArray(data);
-            const { usage, vectorSize, vectorNumber, stride, offset, normalize, divisor, divisor: instancedStep } = Object.assign(BufferInfo.defaultOptions, options);
-            let minStride = 0;
-            if (vectorNumber !== 1) {
-                minStride = vectorSize * vectorNumber * numberSizes[this.type];
-                this._vectorOffset = this._stride / vectorNumber;
-            }
-            else {
-                this._vectorOffset = 0;
-            }
+            const { usage, vectorSize, vectorNumber, stride, offset, normalize, divisor } = Object.assign({}, BufferInfo.defaultOptions, options);
+            const minStride = vectorNumber
+                ? vectorSize * vectorNumber * numberSizes[this.type]
+                : 0;
+            this._stride = Math.min(255, Math.max(minStride, stride));
+            this._vectorOffset = this._stride && vectorNumber
+                ? this._stride / vectorNumber
+                : 0;
             this._vectorSize = vectorSize;
             this._vectorNumber = vectorNumber;
             this._offset = offset;
-            this._stride = Math.min(255, Math.max(minStride, stride));
             this._normalize = normalize;
             this._divisor = divisor;
             this._instancedExt = instancedExt;
@@ -1178,7 +1176,7 @@
                 this._gl.enableVertexAttribArray(j);
                 this._gl.vertexAttribPointer(j, this._vectorSize, this._type, this._normalize, this._stride, this._offset + i * this._vectorOffset);
                 if (this._divisor && this._instancedExt) {
-                    this._instancedExt.vertexAttribDivisorANGLE(this._location, this._divisor);
+                    this._instancedExt.vertexAttribDivisorANGLE(j, this._divisor);
                 }
             }
         }
@@ -1800,6 +1798,44 @@
             this._uniforms.forEach(x => x.set());
         }
     }
+    class InstancedAnimationProgram extends AnimationProgram {
+        constructor(gl, vertexShaderSource, fragmentShaderSource) {
+            super(gl, vertexShaderSource, fragmentShaderSource);
+            this._instanceCount = 0;
+            this._extInstanced = gl.getExtension("ANGLE_instanced_arrays");
+            if (!this._extInstanced) {
+                this.destroy();
+                throw new Error("'ANGLE_instanced_arrays' extension not supported");
+            }
+        }
+        get instanceCount() {
+            return this._instanceCount;
+        }
+        set instanceCount(count) {
+            this._instanceCount = Math.max(0, count);
+        }
+        render(clear = true) {
+            this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
+            if (clear) {
+                this.clear();
+            }
+            this.set();
+            const index = this._attributes.get("index");
+            if (index) {
+                this._extInstanced.drawElementsInstancedANGLE(this._gl.TRIANGLES, this._triangleCount * 3, index.type, this._offset, this._instanceCount);
+            }
+            else {
+                this._extInstanced.drawArraysInstancedANGLE(this._gl.TRIANGLES, this._offset, this._triangleCount * 3, this._instanceCount);
+            }
+        }
+        setInstancedBufferAttribute(name, data, options) {
+            if (!data?.length) {
+                return;
+            }
+            const buffer = new BufferInfo(this._gl, this._program, name, data, options, this._extInstanced);
+            this.setAttribute(buffer);
+        }
+    }
 
     class AnimationWebGl {
         constructor(container, options, controlType) {
@@ -1909,12 +1945,14 @@
             this._vertexShader = `
     #pragma vscode_glsllint_stage : vert
 
-    attribute vec3 aPosition;
     attribute vec4 aColor;
+    attribute vec3 aPosition;
+    attribute mat4 aMatInst;
     attribute vec2 aUv;
+    attribute vec2 aUvInst;
 
     uniform vec2 uResolution;
-
+    uniform int uTexSize;
     uniform mat4 uModel;
     uniform mat4 uView;
     uniform mat4 uProjection;
@@ -1924,8 +1962,11 @@
 
     void main() {
       vColor = aColor;
-      vUv = aUv;
-      gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
+
+      float texSize = float(uTexSize);
+      vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
+
+      gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
     }
   `;
             this._fragmentShader = `
@@ -1946,8 +1987,9 @@
             this._lastResolution = new Vec2();
             this._gl = gl;
             this.fixContext();
-            this._program = new AnimationProgram(gl, this._vertexShader, this._fragmentShader);
+            this._program = new InstancedAnimationProgram(gl, this._vertexShader, this._fragmentShader);
             this._program.loadAndSet2dTexture("uTex", "animals-white.png");
+            this._program.setIntUniform("uTexSize", 8);
             const modelMatrix = new Mat4();
             this._program.setFloatMatUniform("uModel", modelMatrix);
             const viewMatrix = new Mat4().applyTranslation(0, 0, -2);
@@ -1960,9 +2002,30 @@
                 0, 0, 1, 1,
                 1, 1, 1, 1,
             ]), { vectorSize: 4 });
-            this._program.setBufferAttribute("aUv", rect.uvs.map(x => x / 8), { vectorSize: 2 });
+            this._program.setBufferAttribute("aUv", rect.uvs, { vectorSize: 2 });
             this._program.setIndexAttribute(rect.indices);
+            this._program.setInstancedBufferAttribute("aMatInst", new Float32Array([
+                ...new Mat4().applyTranslation(120, 20, -3).toFloatArray(),
+                ...new Mat4().applyTranslation(0, 0, 0).toFloatArray(),
+                ...new Mat4().applyTranslation(-200, -80, -1).applyRotation("z", Math.PI / 3).toFloatArray(),
+                ...new Mat4().applyTranslation(0, 200, -2).applyRotation("z", Math.PI).toFloatArray(),
+                ...new Mat4().applyTranslation(370, 330, 0).toFloatArray(),
+                ...new Mat4().applyTranslation(-400, 20, -7).applyScaling(3).toFloatArray(),
+                ...new Mat4().applyTranslation(300, 300, -5).toFloatArray(),
+                ...new Mat4().applyTranslation(-200, -200, -1).toFloatArray(),
+            ]), { vectorSize: 4, vectorNumber: 4, divisor: 1 });
+            this._program.setInstancedBufferAttribute("aUvInst", new Float32Array([
+                0, 0,
+                1, 0,
+                2, 0,
+                3, 0,
+                0, 1,
+                1, 1,
+                2, 1,
+                3, 1,
+            ]), { vectorSize: 2, divisor: 1 });
             this._program.triangleCount = 2;
+            this._program.instanceCount = 8;
         }
         prepareNextFrame(resolution, pointerPosition, pointerDown, elapsedTime) {
             const resChanged = !resolution.equals(this._lastResolution);

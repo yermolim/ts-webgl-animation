@@ -162,18 +162,19 @@ export class BufferInfo<T extends TypedArray> extends Attribute {
     this._type = getNumberTypeByArray(data); 
     
     const { usage, vectorSize, vectorNumber, stride, offset, 
-      normalize, divisor, divisor: instancedStep } = Object.assign(BufferInfo.defaultOptions, options); 
-    let minStride = 0;    
-    if (vectorNumber !== 1) {
-      minStride = vectorSize * vectorNumber * numberSizes[this.type];
-      this._vectorOffset = this._stride / vectorNumber;
-    } else {      
-      this._vectorOffset = 0;
-    }
+      normalize, divisor } = Object.assign({}, BufferInfo.defaultOptions, options); 
+
+    const minStride = vectorNumber
+      ? vectorSize * vectorNumber * numberSizes[this.type]
+      : 0;  
+    this._stride = Math.min(255, Math.max(minStride, stride)); 
+    this._vectorOffset = this._stride && vectorNumber
+      ? this._stride / vectorNumber
+      : 0;
+
     this._vectorSize = vectorSize;
     this._vectorNumber = vectorNumber;
     this._offset = offset;
-    this._stride = Math.min(255, Math.max(minStride, stride));
     this._normalize = normalize;
 
     this._divisor = divisor;
@@ -181,7 +182,7 @@ export class BufferInfo<T extends TypedArray> extends Attribute {
 
     this._buffer = gl.createBuffer();
     gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);  
-    gl.bufferData(bufferTypes.ARRAY_BUFFER, data, usage);
+    gl.bufferData(bufferTypes.ARRAY_BUFFER, data, usage);    
   }
   
   updateData(data: T, offset: number): void { 
@@ -204,7 +205,7 @@ export class BufferInfo<T extends TypedArray> extends Attribute {
 
       //WebGL1
       if (this._divisor && this._instancedExt) {
-        this._instancedExt.vertexAttribDivisorANGLE(this._location, this._divisor);
+        this._instancedExt.vertexAttribDivisorANGLE(j, this._divisor);
       }
       //WebGL2
       // if (this._divisor) {      

@@ -36,7 +36,7 @@ class DotAnimationOptions implements IAnimationOptions {
   onClickCreateNDots = 10;
   onClickMoveRadius = 200;
   onHoverMoveRadius = 50;
-  onHoverLineRadius = 150
+  onHoverLineRadius = 150;
 
   constructor(item: object = null) {
     if (item) {

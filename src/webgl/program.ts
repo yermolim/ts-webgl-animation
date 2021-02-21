@@ -515,6 +515,7 @@ export class InstancedAnimationProgram extends AnimationProgram {
     if (!data?.length) {
       return;
     }
+
     const buffer = new BufferInfo(this._gl, this._program, name,
       data, options, this._extInstanced);
     this.setAttribute(buffer);
