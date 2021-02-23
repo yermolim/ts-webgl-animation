@@ -47,12 +47,12 @@
             
             const factory = dotsAnim.AnimationFactory; 
 
-            let geometricConfig;
-            const geometricConfigRes = await fetch("./anim.config-geometric.json");
-            if (geometricConfigRes.ok) {
-                const text = await geometricConfigRes.text();
-                geometricConfig = JSON.parse(text);
-            }
+            // let geometricConfig;
+            // const geometricConfigRes = await fetch("./anim.config-geometric.json");
+            // if (geometricConfigRes.ok) {
+            //     const text = await geometricConfigRes.text();
+            //     geometricConfig = JSON.parse(text);
+            // }
 
             const geometricAnimation = factory.createDotsAnimation( // create 'IAnimation' instance
                         "#container-geometric", // selector of existing 'HTMLElement' container
@@ -60,15 +60,15 @@
             geometricAnimation.start();
 
 
-            let snowConfig;
-            const snowConfigRes = await fetch("./anim.config-snow.json");
-            if (snowConfigRes.ok) {
-                const text = await snowConfigRes.text();
-                snowConfig = JSON.parse(text);
-            }
+            // let snowConfig;
+            // const snowConfigRes = await fetch("./anim.config-snow.json");
+            // if (snowConfigRes.ok) {
+            //     const text = await snowConfigRes.text();
+            //     snowConfig = JSON.parse(text);
+            // }
 
-            const snowAnimation = factory.createDotsAnimation("#container-snow", snowConfig);
-            snowAnimation.start();
+            // const snowAnimation = factory.createDotsAnimation("#container-snow", snowConfig);
+            // snowAnimation.start();
 
         })();
 

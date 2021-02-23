@@ -8,6 +8,15 @@
         return crypto.getRandomValues(new Uint32Array(4)).join("-");
     }
 
+    function getRandomFloat(min, max) {
+        return Math.random() * (max - min) + min;
+    }
+    function getRandomArrayElement(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+    }
+    function degToRad(deg) {
+        return deg * Math.PI / 180;
+    }
     function clamp(v, min, max) {
         return Math.max(min, Math.min(v, max));
     }
@@ -626,6 +635,25 @@
             this._matrix[15] = w_w;
             return this;
         }
+        reset() {
+            this._matrix[0] = 1;
+            this._matrix[1] = 0;
+            this._matrix[2] = 0;
+            this._matrix[3] = 0;
+            this._matrix[4] = 0;
+            this._matrix[5] = 1;
+            this._matrix[6] = 0;
+            this._matrix[7] = 0;
+            this._matrix[8] = 0;
+            this._matrix[9] = 0;
+            this._matrix[10] = 1;
+            this._matrix[11] = 0;
+            this._matrix[12] = 0;
+            this._matrix[13] = 0;
+            this._matrix[14] = 0;
+            this._matrix[15] = 1;
+            return this;
+        }
         setFromMat4(m) {
             for (let i = 0; i < this.length; i++) {
                 this._matrix[i] = m._matrix[i];
@@ -895,80 +923,37 @@
     class DotAnimationOptions {
         constructor(item = null) {
             this.expectedFps = 60;
-            this.number = null;
-            this.density = 0.00005;
-            this.dprDependentDensity = true;
-            this.dprDependentDimensions = true;
-            this.minR = 1;
-            this.maxR = 6;
-            this.minSpeedX = -0.5;
-            this.maxSpeedX = 0.5;
-            this.minSpeedY = -0.5;
-            this.maxSpeedY = 0.5;
+            this.fixedNumber = null;
+            this.density = 0.0002;
+            this.size = [16, 64];
+            this.velocityX = [-0.2, 0.2];
+            this.velocityY = [-0.2, 0.2];
             this.blur = 1;
-            this.fill = true;
-            this.colorsFill = ["#ffffff", "#fff4c1", "#faefdb"];
-            this.opacityFill = null;
-            this.opacityFillMin = 0;
-            this.opacityFillStep = 0;
-            this.stroke = false;
-            this.colorsStroke = ["#ffffff"];
-            this.opacityStroke = 1;
-            this.opacityStrokeMin = 0;
-            this.opacityStrokeStep = 0;
+            this.colors = [[255, 255, 255], [255, 244, 193], [250, 239, 219]];
+            this.fixedOpacity = null;
+            this.opacityMin = 0;
+            this.opacityStep = 0;
             this.drawLines = true;
-            this.lineColor = "#717892";
+            this.lineColor = [113, 120, 146];
             this.lineLength = 150;
             this.lineWidth = 2;
-            this.actionOnClick = true;
-            this.actionOnHover = true;
-            this.onClickCreate = false;
-            this.onClickMove = true;
-            this.onHoverMove = true;
-            this.onHoverDrawLines = true;
-            this.onClickCreateNDots = 10;
-            this.onClickMoveRadius = 200;
-            this.onHoverMoveRadius = 50;
-            this.onHoverLineRadius = 150;
+            this.onClick = null;
+            this.onHover = null;
+            this.onClickCreateN = 10;
+            this.onClickMoveR = 200;
+            this.onHoverMoveR = 50;
+            this.onHoverLineLength = 150;
+            this.textureUrl = "animals-white.png";
+            this.textureSize = 8;
+            this.textureMap = [
+                0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0,
+                0, 1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1,
+                0, 2, 1, 2, 2, 2, 3, 2, 4, 2, 5, 2, 6, 2, 7, 2,
+                0, 3, 1, 3, 2, 3, 3, 3, 4, 3, 5, 3,
+            ];
             if (item) {
                 Object.assign(this, item);
             }
-        }
-    }
-
-    class Square {
-        constructor(size = 1) {
-            this._positions = new Float32Array([
-                -size, -size, 0,
-                size, -size, 0,
-                -size, size, 0,
-                size, size, 0,
-            ]);
-            this._normals = new Float32Array([
-                0, 0, 1,
-                0, 0, 1,
-                0, 0, 1,
-                0, 0, 1,
-            ]);
-            this._uvs = new Float32Array([
-                0, 1,
-                1, 1,
-                0, 0,
-                1, 0,
-            ]);
-            this._indices = new Uint32Array([0, 1, 2, 2, 1, 3]);
-        }
-        get positions() {
-            return this._positions;
-        }
-        get normals() {
-            return this._normals;
-        }
-        get uvs() {
-            return this._uvs;
-        }
-        get indices() {
-            return this._indices;
         }
     }
 
@@ -1079,6 +1064,42 @@
             return numberTypes.FLOAT;
         }
         throw new Error("Unsupported array type");
+    }
+
+    class Square {
+        constructor(size = 1) {
+            this._positions = new Float32Array([
+                -size, -size, 0,
+                size, -size, 0,
+                -size, size, 0,
+                size, size, 0,
+            ]);
+            this._normals = new Float32Array([
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+            ]);
+            this._uvs = new Float32Array([
+                0, 1,
+                1, 1,
+                0, 0,
+                1, 0,
+            ]);
+            this._indices = new Uint32Array([0, 1, 2, 2, 1, 3]);
+        }
+        get positions() {
+            return this._positions;
+        }
+        get normals() {
+            return this._normals;
+        }
+        get uvs() {
+            return this._uvs;
+        }
+        get indices() {
+            return this._indices;
+        }
     }
 
     class Attribute {
@@ -1494,7 +1515,7 @@
         render(clear = true) {
             this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
             if (clear) {
-                this.clear();
+                this.resetRender();
             }
             this.set();
             const index = this._attributes.get("index");
@@ -1505,12 +1526,15 @@
                 this._gl.drawArrays(this._gl.TRIANGLES, this._offset, this._triangleCount * 3);
             }
         }
-        clear() {
-            this._gl.cullFace(this._gl.BACK);
-            this._gl.enable(this._gl.CULL_FACE);
-            this._gl.enable(this._gl.DEPTH_TEST);
-            this._gl.clearColor(0, 0, 0, 0);
-            this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
+        resetRender() {
+            const gl = this._gl;
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            gl.cullFace(gl.BACK);
+            gl.enable(gl.CULL_FACE);
+            gl.enable(gl.DEPTH_TEST);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         }
         destroy() {
             this.clearUniforms();
@@ -1817,7 +1841,7 @@
         render(clear = true) {
             this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
             if (clear) {
-                this.clear();
+                this.resetRender();
             }
             this.set();
             const index = this._attributes.get("index");
@@ -1843,6 +1867,8 @@
             this._pointerPosition = new Vec2();
             this._animationStartTimeStamp = 0;
             this._lastFrameTimeStamp = 0;
+            this._lastPreparationTime = 0;
+            this._lastRenderTime = 0;
             this.onResize = () => {
                 const dpr = window.devicePixelRatio;
                 const rect = this._container.getBoundingClientRect();
@@ -1889,11 +1915,14 @@
                 const framePreparationStart = performance.now();
                 const elapsedTime = framePreparationStart - this._animationStartTimeStamp;
                 this._control.prepareNextFrame(this._resolution, this._pointerPosition, this._pointerIsDown, elapsedTime);
+                const framePreparationEnd = performance.now();
+                this._lastPreparationTime = framePreparationEnd - framePreparationStart;
                 requestAnimationFrame(() => {
                     const frameRenderStart = performance.now();
                     this._control.renderFrame();
                     const frameRenderEnd = performance.now();
                     this._lastFrameTimeStamp = frameRenderEnd;
+                    this._lastRenderTime = frameRenderEnd - frameRenderStart;
                 });
             }, 1000 / this._options.expectedFps);
         }
@@ -1940,19 +1969,169 @@
             window.removeEventListener("blur", this.onPointerUp);
         }
     }
+    class DotAnimationWebGlData {
+        constructor(options) {
+            this._dimensions = new Vec3();
+            this._sceneDimensions = new Vec3();
+            this._halfDimentions = new Vec3();
+            this._options = options;
+            this._margin = Math.max(0, options.size[1], options.lineLength, options.onHoverLineLength);
+            this._doubleMargin = this._margin * 2;
+            const rect = new Square(1);
+            this._primitive = rect;
+        }
+        get position() {
+            return this._primitive.positions;
+        }
+        get uv() {
+            return this._primitive.uvs;
+        }
+        get index() {
+            return this._primitive.indices;
+        }
+        get triangles() {
+            return this._primitive.indices.length / 3;
+        }
+        get length() {
+            return this._length;
+        }
+        get color() {
+            return this._iColors;
+        }
+        get matrix() {
+            const matrices = new Float32Array(this._length * 16);
+            for (let i = 0; i < this._length; i++) {
+                matrices.set(this._iMatrices[i].toFloatArray(), i * 16);
+            }
+            return matrices;
+        }
+        get sceneDimensions() {
+            return this._sceneDimensions;
+        }
+        get halfDimentions() {
+            return this._halfDimentions;
+        }
+        updateData(dimensions, pointerPosition, pointerDown, elapsedTime) {
+            if (this.updateDimensions(dimensions)) {
+                this.updateLength();
+            }
+            const { x: dx, y: dy } = this._sceneDimensions;
+            const t = elapsedTime;
+            for (let i = 0; i < this._length; i++) {
+                const sx = this._iSizes[i * 3] / dx;
+                const sy = this._iSizes[i * 3 + 1] / dy;
+                const sz = this._iSizes[i * 3 + 2];
+                const bx = this._iBasePositions[i * 3];
+                const by = this._iBasePositions[i * 3 + 1];
+                const bz = this._iBasePositions[i * 3 + 2];
+                const vx = this._iVelocities[i * 3];
+                const vy = this._iVelocities[i * 3 + 1];
+                const x = (bx + t * vx / dx) % 1;
+                const y = (by + t * vy / dy) % 1;
+                const tx = x < 0 ? x + 1 : x;
+                const ty = y < 0 ? y + 1 : y;
+                const tz = bz;
+                this._iCurrentPositions[i * 3] = tx;
+                this._iCurrentPositions[i * 3 + 1] = ty;
+                this._iCurrentPositions[i * 3 + 2] = tz;
+                this._iMatrices[i].reset().applyScaling(sx, sy, sz).applyTranslation(tx, ty, tz);
+            }
+            this._iMatrices.sort((a, b) => a.w_z - b.w_z);
+        }
+        updateDimensions(dimensions) {
+            const resChanged = !dimensions.equals(this._dimensions);
+            if (resChanged) {
+                this._dimensions.setFromVec3(dimensions);
+                this._sceneDimensions.set(dimensions.x + this._doubleMargin, dimensions.y + this._doubleMargin, dimensions.z);
+                this._halfDimentions.set(this._sceneDimensions.x / 2, this._sceneDimensions.y / 2, this._sceneDimensions.z / 2);
+            }
+            return resChanged;
+        }
+        updateLength() {
+            const length = Math.floor(this._options.fixedNumber
+                ?? this._options.density * this._sceneDimensions.x * this._sceneDimensions.y);
+            if (this._length !== length) {
+                const newColorsLength = length * 4;
+                const newColors = new Float32Array(newColorsLength);
+                const oldColors = this._iColors;
+                const oldColorsLength = oldColors?.length || 0;
+                const colorsIndex = Math.min(newColorsLength, oldColorsLength);
+                if (oldColorsLength) {
+                    newColors.set(oldColors.subarray(0, colorsIndex), 0);
+                }
+                for (let i = colorsIndex; i < newColorsLength;) {
+                    const colors = getRandomArrayElement(this._options.colors);
+                    newColors[i++] = colors[0] / 255;
+                    newColors[i++] = colors[1] / 255;
+                    newColors[i++] = colors[2] / 255;
+                    newColors[i++] = this._options.fixedOpacity
+                        || getRandomFloat(this._options.opacityMin ?? 0, 1);
+                }
+                this._iColors = newColors.sort();
+                const newSizesLength = length * 3;
+                const newSizes = new Float32Array(newSizesLength);
+                const oldSizes = this._iSizes;
+                const oldSizesLength = oldSizes?.length || 0;
+                const sizesIndex = Math.min(newSizesLength, oldSizesLength);
+                if (oldSizesLength) {
+                    newSizes.set(oldSizes.subarray(0, sizesIndex), 0);
+                }
+                for (let i = sizesIndex; i < newSizesLength;) {
+                    const size = getRandomFloat(this._options.size[0], this._options.size[1]);
+                    newSizes[i++] = size;
+                    newSizes[i++] = size;
+                    newSizes[i++] = 1;
+                }
+                this._iSizes = newSizes;
+                const newBasePositionsLength = length * 3;
+                const newBasePositions = new Float32Array(newBasePositionsLength);
+                const oldBasePositions = this._iBasePositions;
+                const oldBasePositionsLength = oldBasePositions?.length || 0;
+                const basePositionsIndex = Math.min(newBasePositionsLength, oldBasePositionsLength);
+                if (oldBasePositionsLength) {
+                    newBasePositions.set(oldBasePositions.subarray(0, basePositionsIndex), 0);
+                }
+                for (let i = basePositionsIndex; i < newBasePositionsLength; i += 3) {
+                    newBasePositions.set([getRandomFloat(0, 1), getRandomFloat(0, 1), getRandomFloat(-1, 0)], i);
+                }
+                this._iBasePositions = newBasePositions;
+                const newVelocitiesLength = length * 3;
+                const newVelocities = new Float32Array(newVelocitiesLength);
+                const oldVelocities = this._iVelocities;
+                const oldVelocitiesLength = oldVelocities?.length || 0;
+                const velocitiesIndex = Math.min(newVelocitiesLength, oldVelocitiesLength);
+                if (oldVelocitiesLength) {
+                    newVelocities.set(oldVelocities.subarray(0, velocitiesIndex), 0);
+                }
+                for (let i = velocitiesIndex; i < newVelocitiesLength;) {
+                    newVelocities[i++] = getRandomFloat(this._options.velocityX[0], this._options.velocityX[1]);
+                    newVelocities[i++] = getRandomFloat(this._options.velocityY[0], this._options.velocityY[1]);
+                    newVelocities[i++] = 1;
+                }
+                this._iVelocities = newVelocities;
+                this._iCurrentPositions = new Float32Array(length * 3);
+                const matrices = new Array(length);
+                for (let j = 0; j < length; j++) {
+                    matrices[j] = new Mat4();
+                }
+                this._iMatrices = matrices;
+                this._length = length;
+            }
+        }
+    }
     class DotWebGlAnimationControl {
         constructor(gl, options) {
             this._vertexShader = `
     #pragma vscode_glsllint_stage : vert
 
-    attribute vec4 aColor;
+    attribute vec4 aColorInst;
     attribute vec3 aPosition;
-    attribute mat4 aMatInst;
     attribute vec2 aUv;
     attribute vec2 aUvInst;
+    attribute mat4 aMatInst;
 
-    uniform vec2 uResolution;
     uniform int uTexSize;
+    uniform vec2 uResolution;
     uniform mat4 uModel;
     uniform mat4 uView;
     uniform mat4 uProjection;
@@ -1961,7 +2140,7 @@
     varying vec2 vUv;
 
     void main() {
-      vColor = aColor;
+      vColor = aColorInst;
 
       float texSize = float(uTexSize);
       vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
@@ -1985,63 +2164,61 @@
     }
   `;
             this._lastResolution = new Vec2();
+            this._dimensions = new Vec3();
             this._gl = gl;
             this.fixContext();
             this._program = new InstancedAnimationProgram(gl, this._vertexShader, this._fragmentShader);
-            this._program.loadAndSet2dTexture("uTex", "animals-white.png");
-            this._program.setIntUniform("uTexSize", 8);
-            const modelMatrix = new Mat4();
-            this._program.setFloatMatUniform("uModel", modelMatrix);
-            const viewMatrix = new Mat4().applyTranslation(0, 0, -2);
-            this._program.setFloatMatUniform("uView", viewMatrix);
-            const rect = new Square(64);
-            this._program.setBufferAttribute("aPosition", rect.positions, { vectorSize: 3 });
-            this._program.setBufferAttribute("aColor", new Float32Array([
-                1, 0, 0, 1,
-                0, 1, 0, 1,
-                0, 0, 1, 1,
-                1, 1, 1, 1,
-            ]), { vectorSize: 4 });
-            this._program.setBufferAttribute("aUv", rect.uvs, { vectorSize: 2 });
-            this._program.setIndexAttribute(rect.indices);
-            this._program.setInstancedBufferAttribute("aMatInst", new Float32Array([
-                ...new Mat4().applyTranslation(120, 20, -3).toFloatArray(),
-                ...new Mat4().applyTranslation(0, 0, 0).toFloatArray(),
-                ...new Mat4().applyTranslation(-200, -80, -1).applyRotation("z", Math.PI / 3).toFloatArray(),
-                ...new Mat4().applyTranslation(0, 200, -2).applyRotation("z", Math.PI).toFloatArray(),
-                ...new Mat4().applyTranslation(370, 330, 0).toFloatArray(),
-                ...new Mat4().applyTranslation(-400, 20, -7).applyScaling(3).toFloatArray(),
-                ...new Mat4().applyTranslation(300, 300, -5).toFloatArray(),
-                ...new Mat4().applyTranslation(-200, -200, -1).toFloatArray(),
-            ]), { vectorSize: 4, vectorNumber: 4, divisor: 1 });
-            this._program.setInstancedBufferAttribute("aUvInst", new Float32Array([
-                0, 0,
-                1, 0,
-                2, 0,
-                3, 0,
-                0, 1,
-                1, 1,
-                2, 1,
-                3, 1,
-            ]), { vectorSize: 2, divisor: 1 });
-            this._program.triangleCount = 2;
-            this._program.instanceCount = 8;
+            this._data = new DotAnimationWebGlData(options);
+            if (!options.textureUrl) {
+                throw new Error("Texture URL not defined");
+            }
+            this._textureMap = options.textureMap;
+            this._program.loadAndSet2dTexture("uTex", options.textureUrl);
+            this._program.setIntUniform("uTexSize", options.textureSize || 1);
+            this._program.setBufferAttribute("aPosition", this._data.position, { vectorSize: 3 });
+            this._program.setBufferAttribute("aUv", this._data.uv, { vectorSize: 2 });
+            this._program.setIndexAttribute(this._data.index);
         }
         prepareNextFrame(resolution, pointerPosition, pointerDown, elapsedTime) {
             const resChanged = !resolution.equals(this._lastResolution);
             if (resChanged) {
-                this._lastResolution.setFromVec2(resolution);
+                const fov = 120;
+                const depth = 100;
+                const near = Math.tan(0.5 * Math.PI - 0.5 * degToRad(fov)) * resolution.y / 2;
                 this.resize(resolution);
                 this._program.setIntVecUniform("uResolution", resolution);
-                const projectionMatrix = Mat4.buildPerspective(1, 10, -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
+                this._lastResolution.setFromVec2(resolution);
+                this._dimensions.set(resolution.x, resolution.y, depth);
+                this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);
+                const viewMatrix = new Mat4().applyTranslation(0, 0, -near);
+                this._program.setFloatMatUniform("uView", viewMatrix);
+                const outerSize = this._data.sceneDimensions;
+                const modelMatrix = new Mat4()
+                    .applyTranslation(-0.5, -0.5, 0)
+                    .applyScaling(outerSize.x, outerSize.y, depth);
+                this._program.setFloatMatUniform("uModel", modelMatrix);
+                const projectionMatrix = Mat4.buildPerspective(near, near + depth, -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
                 this._program.setFloatMatUniform("uProjection", projectionMatrix);
+                this._program.setInstancedBufferAttribute("aMatInst", this._data.matrix, { vectorSize: 4, vectorNumber: 4, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW });
+                this._program.setInstancedBufferAttribute("aColorInst", this._data.color, { vectorSize: 4, vectorNumber: 1, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW });
+                const textureMapArray = new Float32Array(this._data.length * 2);
+                for (let i = 0; i < textureMapArray.length; i++) {
+                    textureMapArray[i] = this._textureMap[i % this._textureMap.length];
+                }
+                this._program.setInstancedBufferAttribute("aUvInst", textureMapArray, { vectorSize: 2, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW });
             }
+            else {
+                this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);
+            }
+            this._program.updateBufferAttribute("aMatInst", this._data.matrix, 0);
         }
         renderFrame() {
+            this._program.triangleCount = this._data.triangles;
+            this._program.instanceCount = this._data.length;
             this._program.render();
         }
         clear() {
-            this._program.clear();
+            this._program.resetRender();
         }
         destroy() {
             this._program.destroy();

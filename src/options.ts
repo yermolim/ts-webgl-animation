@@ -2,41 +2,39 @@ import { IAnimationOptions } from "./interfaces";
 
 class DotAnimationOptions implements IAnimationOptions {
   expectedFps = 60;
-  number = null;
-  density = 0.00005;
-  dprDependentDensity = true;
-  dprDependentDimensions = true;
-  minR = 1;
-  maxR = 6;
-  minSpeedX = -0.5;
-  maxSpeedX = 0.5;
-  minSpeedY = -0.5;
-  maxSpeedY = 0.5;
+
+  fixedNumber: number = null;
+  density = 0.0002;
+  size: [min: number, max: number] = [16, 64];
+  velocityX: [min: number, max: number] = [-0.2, 0.2];
+  velocityY: [min: number, max: number] = [-0.2, 0.2];
+  
   blur = 1;
-  fill = true;
-  colorsFill = ["#ffffff", "#fff4c1", "#faefdb"];
-  opacityFill = null;
-  opacityFillMin = 0;
-  opacityFillStep = 0;
-  stroke = false;
-  colorsStroke = ["#ffffff"];
-  opacityStroke = 1;
-  opacityStrokeMin = 0;
-  opacityStrokeStep = 0;
+  colors: [r: number, g: number, b: number][] = [[255, 255, 255], [255, 244, 193], [250, 239, 219]];  
+  fixedOpacity = null;
+  opacityMin = 0;
+  opacityStep = 0;
+
   drawLines = true;
-  lineColor = "#717892";
+  lineColor: [r: number, g: number, b: number] = [113, 120, 146];
   lineLength = 150;
   lineWidth = 2;
-  actionOnClick = true;
-  actionOnHover = true;
-  onClickCreate = false;
-  onClickMove = true;
-  onHoverMove = true;
-  onHoverDrawLines = true;
-  onClickCreateNDots = 10;
-  onClickMoveRadius = 200;
-  onHoverMoveRadius = 50;
-  onHoverLineRadius = 150;
+
+  onClick: "create" | "move" = null;
+  onHover: "move" | "draw-lines" = null;
+  onClickCreateN = 10;
+  onClickMoveR = 200;
+  onHoverMoveR = 50;
+  onHoverLineLength = 150;
+  
+  textureUrl = "animals-white.png";
+  textureSize = 8;
+  textureMap = [
+    0,0, 1,0, 2,0, 3,0, 4,0, 5,0, 6,0, 7,0,
+    0,1, 1,1, 2,1, 3,1, 4,1, 5,1, 6,1, 7,1,
+    0,2, 1,2, 2,2, 3,2, 4,2, 5,2, 6,2, 7,2,
+    0,3, 1,3, 2,3, 3,3, 4,3, 5,3, 
+  ];
 
   constructor(item: object = null) {
     if (item) {

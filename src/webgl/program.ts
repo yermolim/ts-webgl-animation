@@ -80,7 +80,7 @@ export class AnimationProgram {
     this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
 
     if (clear) {
-      this.clear();
+      this.resetRender();
     }
     this.set();
 
@@ -92,13 +92,18 @@ export class AnimationProgram {
     }
   }
 
-  clear() {    
-    this._gl.cullFace(this._gl.BACK);
-    this._gl.enable(this._gl.CULL_FACE);
-    this._gl.enable(this._gl.DEPTH_TEST);
+  resetRender() {   
+    const gl = this._gl;
 
-    this._gl.clearColor(0, 0, 0, 0);
-    this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    gl.cullFace(gl.BACK);
+    gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   }
 
   destroy() {    
@@ -497,7 +502,7 @@ export class InstancedAnimationProgram extends AnimationProgram {
     this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
     
     if (clear) {
-      this.clear();
+      this.resetRender();
     }
     this.set();
     

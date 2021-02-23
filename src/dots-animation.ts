@@ -1,11 +1,16 @@
 import { getRandomUuid } from "./common";
 import { IAnimation, IAnimationOptions, 
   IWebGlAnimationControlType, IWebGlAnimationControl} from "./interfaces";
+import { degToRad, getRandomArrayElement, getRandomFloat } from "./math/common";
 import { Mat4 } from "./math/mat4";
 import { Vec2 } from "./math/vec2";
+import { Vec3 } from "./math/vec3";
 import { DotAnimationOptions } from "./options";
+import { bufferUsageTypes } from "./webgl/common";
+import { Primitive } from "./webgl/primitives/common";
 import { Square } from "./webgl/primitives/square";
-import { AnimationProgram, InstancedAnimationProgram } from "./webgl/program";
+import { InstancedAnimationProgram } from "./webgl/program";
+
 
 class AnimationWebGl implements IAnimation {
   private _options: IAnimationOptions;
@@ -23,6 +28,9 @@ class AnimationWebGl implements IAnimation {
   private _animationTimerId: number;  
   private _animationStartTimeStamp = 0;
   private _lastFrameTimeStamp = 0;
+  
+  private _lastPreparationTime = 0;
+  private _lastRenderTime = 0;
 
   constructor(container: HTMLElement, options: IAnimationOptions, 
     controlType: IWebGlAnimationControlType) {  
@@ -54,17 +62,16 @@ class AnimationWebGl implements IAnimation {
     this._animationTimerId = setInterval(() => {     
       const framePreparationStart = performance.now();
       const elapsedTime = framePreparationStart - this._animationStartTimeStamp;
-
       this._control.prepareNextFrame(this._resolution, this._pointerPosition, this._pointerIsDown, elapsedTime);
-
-
+      const framePreparationEnd = performance.now();
+      this._lastPreparationTime = framePreparationEnd - framePreparationStart;
+      
       requestAnimationFrame(() => {
         const frameRenderStart = performance.now();
-
         this._control.renderFrame();
-
         const frameRenderEnd = performance.now();
         this._lastFrameTimeStamp = frameRenderEnd;
+        this._lastRenderTime = frameRenderEnd - frameRenderStart;
       });
     }, 1000/this._options.expectedFps);
   }
@@ -156,21 +163,228 @@ class AnimationWebGl implements IAnimation {
   }
 }
 
-// 
-// 
+class DotAnimationWebGlData {
+  private _primitive: Primitive;
+  get position(): Float32Array {
+    return this._primitive.positions;
+  }
+  get uv(): Float32Array {
+    return this._primitive.uvs;
+  }
+  get index(): Uint32Array {
+    return this._primitive.indices;
+  }
+
+  private _triangles: number;
+  get triangles(): number {
+    return this._primitive.indices.length / 3;
+  }
+  private _length: number;
+  get length(): number {
+    return this._length;
+  }
+
+  private _iColors: Float32Array; // length x4
+  get color(): Float32Array {
+    return this._iColors;
+  }
+  private _iSizes: Float32Array; // length x3
+  private _iBasePositions: Float32Array; // length x3
+  private _iVelocities: Float32Array; // length x3
+
+  private _iCurrentPositions: Float32Array; // length x3
+  private _iMatrices: Mat4[]; 
+  get matrix(): Float32Array {  
+    // TODO: optimize  
+    const matrices = new Float32Array(this._length * 16);
+    for (let i = 0; i < this._length; i++) {
+      matrices.set(this._iMatrices[i].toFloatArray(), i * 16);
+    }
+    return matrices;
+  }
+
+  private _options: DotAnimationOptions;
+
+  private _margin: number;
+  private _doubleMargin: number;  
+  
+  private _dimensions = new Vec3();
+  private _sceneDimensions = new Vec3();
+  get sceneDimensions(): Vec3 {
+    return this._sceneDimensions;
+  }
+  private _halfDimentions = new Vec3();
+  get halfDimentions(): Vec3 {
+    return this._halfDimentions;
+  }
+
+  constructor(options: DotAnimationOptions) { 
+    this._options = options;
+
+    this._margin = Math.max(0, options.size[1], options.lineLength, options.onHoverLineLength);
+    this._doubleMargin = this._margin * 2;
+
+    const rect = new Square(1);
+    this._primitive = rect;
+  }
+
+  updateData(dimensions: Vec3, pointerPosition: Vec2, 
+    pointerDown: boolean, elapsedTime: number) {  
+
+    if (this.updateDimensions(dimensions)) {
+      this.updateLength();
+    }
+
+    const {x: dx, y: dy} = this._sceneDimensions;
+    const t = elapsedTime;
+
+    for (let i = 0; i < this._length; i++) {      
+      const sx = this._iSizes[i * 3] / dx;
+      const sy = this._iSizes[i * 3 + 1] / dy;
+      const sz = this._iSizes[i * 3 + 2];
+      
+      const bx = this._iBasePositions[i * 3];
+      const by = this._iBasePositions[i * 3 + 1];
+      const bz = this._iBasePositions[i * 3 + 2];
+      
+      const vx = this._iVelocities[i * 3];
+      const vy = this._iVelocities[i * 3 + 1];
+
+      // update positions
+      const x = (bx + t * vx / dx) % 1;
+      const y = (by + t * vy / dy) % 1;
+
+      const tx = x < 0 ? x + 1 : x; // ???
+      const ty = y < 0 ? y + 1 : y;
+      const tz = bz;
+
+      this._iCurrentPositions[i * 3] = tx;
+      this._iCurrentPositions[i * 3 + 1] = ty;
+      this._iCurrentPositions[i * 3 + 2] = tz;
+
+      // update matrices
+      this._iMatrices[i].reset().applyScaling(sx, sy, sz).applyTranslation(tx, ty, tz);
+    }
+
+    // sort by depth
+    this._iMatrices.sort((a, b) => a.w_z - b.w_z);
+  }
+
+  private updateDimensions(dimensions: Vec3): boolean {    
+    const resChanged = !dimensions.equals(this._dimensions);
+    if (resChanged) {
+      this._dimensions.setFromVec3(dimensions);
+      this._sceneDimensions.set(
+        dimensions.x + this._doubleMargin,
+        dimensions.y + this._doubleMargin,
+        dimensions.z,
+      );
+      this._halfDimentions.set(
+        this._sceneDimensions.x / 2,
+        this._sceneDimensions.y / 2,
+        this._sceneDimensions.z / 2,
+      );
+    }
+    return resChanged;
+  }
+
+  private updateLength() {
+    const length = Math.floor(this._options.fixedNumber 
+      ?? this._options.density * this._sceneDimensions.x * this._sceneDimensions.y);
+    if (this._length !== length) {
+      // update instance arrays
+
+      // colors
+      const newColorsLength = length * 4;
+      const newColors = new Float32Array(newColorsLength);
+      const oldColors = this._iColors;
+      const oldColorsLength = oldColors?.length || 0;
+      const colorsIndex = Math.min(newColorsLength, oldColorsLength);
+      if (oldColorsLength) {
+        newColors.set(oldColors.subarray(0, colorsIndex), 0);
+      }
+      for (let i = colorsIndex; i < newColorsLength;) {
+        const colors = getRandomArrayElement(this._options.colors);
+        newColors[i++] = colors[0] / 255;
+        newColors[i++] = colors[1] / 255;
+        newColors[i++] = colors[2] / 255;
+        newColors[i++] = this._options.fixedOpacity 
+          || getRandomFloat(this._options.opacityMin ?? 0, 1);
+      }        
+      this._iColors = newColors.sort();
+      
+      // sizes
+      const newSizesLength = length * 3;
+      const newSizes = new Float32Array(newSizesLength);
+      const oldSizes = this._iSizes;
+      const oldSizesLength = oldSizes?.length || 0;
+      const sizesIndex = Math.min(newSizesLength, oldSizesLength);
+      if (oldSizesLength) {
+        newSizes.set(oldSizes.subarray(0, sizesIndex), 0);
+      }
+      for (let i = sizesIndex; i < newSizesLength;) {
+        const size = getRandomFloat(this._options.size[0], this._options.size[1]);
+        newSizes[i++] = size;
+        newSizes[i++] = size;
+        newSizes[i++] = 1;
+      }        
+      this._iSizes = newSizes;
+
+      // basePositions
+      const newBasePositionsLength = length * 3;
+      const newBasePositions = new Float32Array(newBasePositionsLength);
+      const oldBasePositions = this._iBasePositions;
+      const oldBasePositionsLength = oldBasePositions?.length || 0;
+      const basePositionsIndex = Math.min(newBasePositionsLength, oldBasePositionsLength);
+      if (oldBasePositionsLength) {
+        newBasePositions.set(oldBasePositions.subarray(0, basePositionsIndex), 0);
+      }      
+      for (let i = basePositionsIndex; i < newBasePositionsLength; i += 3) {
+        newBasePositions.set([getRandomFloat(0, 1), getRandomFloat(0, 1), getRandomFloat(-1, 0)], i);
+      }
+      this._iBasePositions = newBasePositions;
+
+      // velocities
+      const newVelocitiesLength = length * 3;
+      const newVelocities = new Float32Array(newVelocitiesLength);
+      const oldVelocities = this._iVelocities;
+      const oldVelocitiesLength = oldVelocities?.length || 0;
+      const velocitiesIndex = Math.min(newVelocitiesLength, oldVelocitiesLength);
+      if (oldVelocitiesLength) {
+        newVelocities.set(oldVelocities.subarray(0, velocitiesIndex), 0);
+      }
+      for (let i = velocitiesIndex; i < newVelocitiesLength;) {
+        newVelocities[i++] = getRandomFloat(this._options.velocityX[0], this._options.velocityX[1]);
+        newVelocities[i++] = getRandomFloat(this._options.velocityY[0], this._options.velocityY[1]);
+        newVelocities[i++] = 1;
+      }
+      this._iVelocities = newVelocities;
+
+      this._iCurrentPositions = new Float32Array(length * 3);
+
+      const matrices: Mat4[] = new Array(length);
+      for (let j = 0; j < length; j++) {
+        matrices[j] = new Mat4();
+      }
+      this._iMatrices = matrices;
+
+      this._length = length;
+    }
+  }
+} 
 
 class DotWebGlAnimationControl implements IWebGlAnimationControl {
   private readonly _vertexShader = `
     #pragma vscode_glsllint_stage : vert
 
-    attribute vec4 aColor;
+    attribute vec4 aColorInst;
     attribute vec3 aPosition;
-    attribute mat4 aMatInst;
     attribute vec2 aUv;
     attribute vec2 aUvInst;
+    attribute mat4 aMatInst;
 
-    uniform vec2 uResolution;
     uniform int uTexSize;
+    uniform vec2 uResolution;
     uniform mat4 uModel;
     uniform mat4 uView;
     uniform mat4 uProjection;
@@ -179,7 +393,7 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
     varying vec2 vUv;
 
     void main() {
-      vColor = aColor;
+      vColor = aColorInst;
 
       float texSize = float(uTexSize);
       vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
@@ -205,97 +419,114 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
   `;
   
   private _gl: WebGLRenderingContext;
-
   private _program: InstancedAnimationProgram;
 
+  private _textureMap: number[];
+
   private _lastResolution = new Vec2();
+  private _dimensions = new Vec3();
+  private _data: DotAnimationWebGlData;
 
   constructor(gl: WebGLRenderingContext, options: IAnimationOptions) {
     this._gl = gl;
-
     this.fixContext();
+
     this._program = new InstancedAnimationProgram(gl, this._vertexShader, this._fragmentShader);
+    this._data = new DotAnimationWebGlData(options);
 
     // set uniforms
-    this._program.loadAndSet2dTexture("uTex", "animals-white.png");    
-    this._program.setIntUniform("uTexSize", 8); // atlas row tile count
-
-    const modelMatrix = new Mat4();
-    this._program.setFloatMatUniform("uModel", modelMatrix);
-    const viewMatrix = new Mat4().applyTranslation(0, 0, -2);
-    this._program.setFloatMatUniform("uView", viewMatrix);
-
-    // set common attributes
-    const rect = new Square(64);
-    this._program.setBufferAttribute("aPosition", rect.positions, {vectorSize: 3});
-    this._program.setBufferAttribute("aColor", new Float32Array([
-      1, 0, 0, 1,
-      0, 1, 0, 1,
-      0, 0, 1, 1,
-      1, 1, 1, 1,
-    ]), {vectorSize: 4});
-
-    this._program.setBufferAttribute("aUv", rect.uvs, {vectorSize: 2});
-    this._program.setIndexAttribute(rect.indices);  
-  
-    // set instance attributes    
-    this._program.setInstancedBufferAttribute("aMatInst",
-      new Float32Array([
-        ...new Mat4().applyTranslation(120, 20, -3).toFloatArray(),
-        ...new Mat4().applyTranslation(0, 0, 0).toFloatArray(),
-        ...new Mat4().applyTranslation(-200, -80, -1).applyRotation("z", Math.PI / 3).toFloatArray(),
-        ...new Mat4().applyTranslation(0, 200, -2).applyRotation("z", Math.PI).toFloatArray(),
-        ...new Mat4().applyTranslation(370, 330, 0).toFloatArray(),
-        ...new Mat4().applyTranslation(-400, 20, -7).applyScaling(3).toFloatArray(),
-        ...new Mat4().applyTranslation(300, 300, -5).toFloatArray(),
-        ...new Mat4().applyTranslation(-200, -200, -1).toFloatArray(),
-      ]), {vectorSize: 4, vectorNumber: 4, divisor: 1});    
-    this._program.setInstancedBufferAttribute("aUvInst",
-      // column, row 
-      new Float32Array([
-        0, 0,
-        1, 0,
-        2, 0,
-        3, 0,
-        0, 1,
-        1, 1,
-        2, 1,
-        3, 1,
-      ]), {vectorSize: 2, divisor: 1});
-
-    this._program.triangleCount = 2;
-    this._program.instanceCount = 8;
+    if (!options.textureUrl) {
+      throw new Error("Texture URL not defined");
+    }
+    this._textureMap = options.textureMap;
+    this._program.loadAndSet2dTexture("uTex", options.textureUrl);    
+    this._program.setIntUniform("uTexSize", options.textureSize || 1); // atlas row tile count
+    
+    this._program.setBufferAttribute("aPosition", this._data.position, {vectorSize: 3});
+    this._program.setBufferAttribute("aUv", this._data.uv, {vectorSize: 2});
+    this._program.setIndexAttribute(this._data.index);    
   }
 
   prepareNextFrame(resolution: Vec2, pointerPosition: Vec2, pointerDown: boolean, elapsedTime: number) {
     const resChanged = !resolution.equals(this._lastResolution);
-    if (resChanged) {
-      this._lastResolution.setFromVec2(resolution);
+    if (resChanged) {   
+      // TODO: move to options
+      const fov = 120;
+      const depth = 100;
+      const near = Math.tan(0.5 * Math.PI - 0.5 * degToRad(fov)) * resolution.y / 2;
 
+      //update dimensions
       this.resize(resolution);     
       this._program.setIntVecUniform("uResolution", resolution);
+
+      this._lastResolution.setFromVec2(resolution);
+      this._dimensions.set(resolution.x, resolution.y, depth);
       
-      const projectionMatrix = Mat4.buildPerspective(1, 10, 
-        - resolution.x / 2,
-        resolution.x / 2,
-        - resolution.y / 2,
-        resolution.y / 2,
-      );
-      this._program.setFloatMatUniform("uProjection", projectionMatrix);
+      // update data
+      this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);  
+      
+      //#region  matrices
+      const viewMatrix = new Mat4().applyTranslation(0, 0, -near);
+      this._program.setFloatMatUniform("uView", viewMatrix);
+
+      const outerSize = this._data.sceneDimensions;
+      const modelMatrix = new Mat4()
+        .applyTranslation(-0.5, -0.5, 0)
+        .applyScaling(outerSize.x, outerSize.y, depth);
+      this._program.setFloatMatUniform("uModel", modelMatrix);
+      
+      const projectionMatrix = Mat4.buildPerspective(near, near + depth, 
+        -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
+      this._program.setFloatMatUniform("uProjection", projectionMatrix); 
+      //#endregion  
+
+      //#region buffers
+      this._program.setInstancedBufferAttribute("aMatInst", this._data.matrix, 
+        {vectorSize: 4, vectorNumber: 4, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW});
+
+      this._program.setInstancedBufferAttribute("aColorInst", this._data.color, 
+        {vectorSize: 4, vectorNumber: 1, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW}); 
+
+      const textureMapArray = new Float32Array(this._data.length * 2);
+      for (let i = 0; i < textureMapArray.length; i++) {
+        textureMapArray[i] = this._textureMap[i % this._textureMap.length];
+      }
+      this._program.setInstancedBufferAttribute("aUvInst", textureMapArray,
+        {vectorSize: 2, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW});   
+      //#endregion   
+        
+      //#region debug
+      // const vec = new Vec3(1, 1, 0);
+      // console.log(vec);
+      // const inst = new Mat4().set(...this._data.matrix.slice(0, 16));
+      // console.log(inst);
+      // const view = new Mat4().applyTranslation(0, 0, -near);
+      // console.log(view);
+      // console.log(vec.applyMat4(inst));
+      // console.log(vec.applyMat4(modelMatrix));
+      // console.log(vec.applyMat4(view));
+      // console.log(vec.applyMat4(projectionMatrix));
+      //#endregion
+    } else {
+      this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);
     }
 
-    // calc uniforms
-    // set uniforms
+    // console.log(Math.max(...this._data.matrix.filter((x, i) => !(i % 12))));
+    // console.log(Math.max(...this._data.matrix.filter((x, i) => !(i % 13))));
+    // console.log(Math.max(...this._data.matrix.filter((x, i) => !(i % 14))));
 
-    // DEBUG
+    this._program.updateBufferAttribute("aMatInst", this._data.matrix, 0);
   }
 
-  renderFrame() {
+  renderFrame() {    
+    this._program.triangleCount = this._data.triangles;
+    this._program.instanceCount = this._data.length;
+
     this._program.render();
   }
 
   clear() {
-    this._program.clear();
+    this._program.resetRender();
   }
 
   destroy() {
@@ -316,8 +547,6 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
     }
   }
 }
-
-//
 
 class AnimationFactory {
   static createDotsAnimation(containerSelector: string, options: any = null): IAnimation {    

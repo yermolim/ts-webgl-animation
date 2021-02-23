@@ -7,6 +7,10 @@ export function getRandomFloat(min: number, max: number): number {
   return Math.random() * (max - min) + min;
 }
 
+export function getRandomArrayElement<T>(arr: T[]) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 export function radToDeg(rad: number): number {
   return rad * 180 / Math.PI;
 }
@@ -63,6 +67,7 @@ export interface Vec extends NumberElements {
 }
 
 export interface Mat extends NumberElements {
+  reset(): Mat;
   clone(): Mat;
   invert(): Mat;
   transpose(): Mat;

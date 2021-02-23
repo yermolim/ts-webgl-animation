@@ -315,6 +315,29 @@ export class Mat4 implements Mat {
     return this;
   }
 
+  reset(): Mat4 {
+    this._matrix[0] = 1;
+    this._matrix[1] = 0;
+    this._matrix[2] = 0;    
+    this._matrix[3] = 0;
+
+    this._matrix[4] = 0;
+    this._matrix[5] = 1;
+    this._matrix[6] = 0;
+    this._matrix[7] = 0;
+
+    this._matrix[8] = 0;
+    this._matrix[9] = 0;
+    this._matrix[10] = 1;
+    this._matrix[11] = 0;
+
+    this._matrix[12] = 0;
+    this._matrix[13] = 0;
+    this._matrix[14] = 0;
+    this._matrix[15] = 1;
+    return this;
+  }
+
   setFromMat4(m: Mat4): Mat4 {
     for (let i = 0; i < this.length; i++) {
       this._matrix[i] = m._matrix[i];

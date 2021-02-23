@@ -1,8 +1,35 @@
 import { Vec2 } from "./math/vec2";
 
 interface IAnimationOptions {
-  expectedFps: number;  
+  expectedFps: number;
+
+  fixedNumber: number;
+  density: number;
+  size: [min: number, max: number];
+  velocityX: [min: number, max: number];
+  velocityY: [min: number, max: number];
+  
   blur: number;
+  colors: [r: number, g: number, b: number][];  
+  fixedOpacity: number;
+  opacityMin: number;
+  opacityStep: number;
+
+  drawLines: boolean;
+  lineColor: [r: number, g: number, b: number];
+  lineLength: number;
+  lineWidth: number;
+
+  onClick: "create" | "move";
+  onHover: "move" | "draw-lines";
+  onClickCreateN: number;
+  onClickMoveR: number;
+  onHoverMoveR: number;
+  onHoverLineLength: number;
+  
+  textureUrl: string;
+  textureSize: number;
+  textureMap: number[];
 }
 
 interface IAnimation {
