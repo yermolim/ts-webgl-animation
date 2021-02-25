@@ -920,11 +920,166 @@
         }
     }
 
+    class Vec4 {
+        constructor(x = 0, y = 0, z = 0, w = 1) {
+            this.length = 4;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.w = w;
+        }
+        static fromVec3(v) {
+            return new Vec4(v.x, v.y, v.z);
+        }
+        static multiplyByScalar(v, s) {
+            return new Vec4(v.x * s, v.y * s, v.z * s, v.w * s);
+        }
+        static addScalar(v, s) {
+            return new Vec4(v.x + s, v.y + s, v.z + s, v.w + s);
+        }
+        static normalize(v) {
+            return new Vec4().setFromVec4(v).normalize();
+        }
+        static add(v1, v2) {
+            return new Vec4(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w);
+        }
+        static substract(v1, v2) {
+            return new Vec4(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z, v1.w - v2.w);
+        }
+        static dotProduct(v1, v2) {
+            return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w;
+        }
+        static applyMat4(v, m) {
+            return v.clone().applyMat4(m);
+        }
+        static lerp(v1, v2, t) {
+            return v1.clone().lerp(v2, t);
+        }
+        static equals(v1, v2, precision = 6) {
+            if (!v1) {
+                return false;
+            }
+            return v1.equals(v2, precision);
+        }
+        clone() {
+            return new Vec4(this.x, this.y, this.z, this.w);
+        }
+        set(x, y, z, w) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.w = w;
+            return this;
+        }
+        setFromVec3(v) {
+            this.x = v.x;
+            this.y = v.y;
+            this.z = v.z;
+            this.w = 1;
+        }
+        setFromVec4(v) {
+            this.x = v.x;
+            this.y = v.y;
+            this.z = v.z;
+            this.w = v.w;
+            return this;
+        }
+        multiplyByScalar(s) {
+            this.x *= s;
+            this.y *= s;
+            this.z *= s;
+            this.w *= s;
+            return this;
+        }
+        addScalar(s) {
+            this.x += s;
+            this.y += s;
+            this.z += s;
+            this.w += s;
+            return this;
+        }
+        getMagnitude() {
+            return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
+        }
+        normalize() {
+            const m = this.getMagnitude();
+            if (m) {
+                this.x /= m;
+                this.y /= m;
+                this.z /= m;
+                this.w /= m;
+            }
+            return this;
+        }
+        add(v) {
+            this.x += v.x;
+            this.y += v.y;
+            this.z += v.z;
+            this.w += v.w;
+            return this;
+        }
+        substract(v) {
+            this.x -= v.x;
+            this.y -= v.y;
+            this.z -= v.z;
+            this.w -= v.w;
+            return this;
+        }
+        dotProduct(v) {
+            return this.x * v.x + this.y * v.y + this.z * v.z + this.w * v.w;
+        }
+        applyMat4(m) {
+            if (m.length !== 16) {
+                throw new Error("Matrix must contain 16 elements");
+            }
+            const { x, y, z, w } = this;
+            const [x_x, x_y, x_z, x_w, y_x, y_y, y_z, y_w, z_x, z_y, z_z, z_w, w_x, w_y, w_z, w_w] = m;
+            this.x = x * x_x + y * y_x + z * z_x + w * w_x;
+            this.y = x * x_y + y * y_y + z * z_y + w * w_y;
+            this.z = x * x_z + y * y_z + z * z_z + w * w_z;
+            this.w = x * x_w + y * y_w + z * z_w + w * w_w;
+            return this;
+        }
+        lerp(v, t) {
+            this.x += t * (v.x - this.x);
+            this.y += t * (v.y - this.y);
+            this.z += t * (v.z - this.z);
+            this.w += t * (v.w - this.w);
+            return this;
+        }
+        equals(v, precision = 6) {
+            if (!v) {
+                return false;
+            }
+            return +this.x.toFixed(precision) === +v.x.toFixed(precision)
+                && +this.y.toFixed(precision) === +v.y.toFixed(precision)
+                && +this.z.toFixed(precision) === +v.z.toFixed(precision)
+                && +this.w.toFixed(precision) === +v.w.toFixed(precision);
+        }
+        toArray() {
+            return [this.x, this.y, this.z, this.w];
+        }
+        toIntArray() {
+            return new Int32Array(this);
+        }
+        toFloatArray() {
+            return new Float32Array(this);
+        }
+        *[Symbol.iterator]() {
+            yield this.x;
+            yield this.y;
+            yield this.z;
+            yield this.w;
+        }
+    }
+
     class DotAnimationOptions {
         constructor(item = null) {
             this.expectedFps = 60;
             this.fixedNumber = null;
             this.density = 0.0002;
+            this.depth = 1000;
+            this.fov = 120;
             this.size = [16, 64];
             this.velocityX = [-0.2, 0.2];
             this.velocityY = [-0.2, 0.2];
@@ -1971,9 +2126,8 @@
     }
     class DotAnimationWebGlData {
         constructor(options) {
-            this._dimensions = new Vec3();
+            this._dimensions = new Vec4();
             this._sceneDimensions = new Vec3();
-            this._halfDimentions = new Vec3();
             this._options = options;
             this._margin = Math.max(0, options.size[1], options.lineLength, options.onHoverLineLength);
             this._doubleMargin = this._margin * 2;
@@ -2008,15 +2162,13 @@
         get sceneDimensions() {
             return this._sceneDimensions;
         }
-        get halfDimentions() {
-            return this._halfDimentions;
-        }
         updateData(dimensions, pointerPosition, pointerDown, elapsedTime) {
             if (this.updateDimensions(dimensions)) {
                 this.updateLength();
             }
-            const { x: dx, y: dy } = this._sceneDimensions;
+            const { x: dx, y: dy, z: dz } = this._sceneDimensions;
             const t = elapsedTime;
+            const tempV2 = new Vec2();
             for (let i = 0; i < this._length; i++) {
                 const sx = this._iSizes[i * 3] / dx;
                 const sy = this._iSizes[i * 3 + 1] / dy;
@@ -2026,10 +2178,13 @@
                 const bz = this._iBasePositions[i * 3 + 2];
                 const vx = this._iVelocities[i * 3];
                 const vy = this._iVelocities[i * 3 + 1];
-                const x = (bx + t * vx / dx) % 1;
-                const y = (by + t * vy / dy) % 1;
-                const tx = x < 0 ? x + 1 : x;
-                const ty = y < 0 ? y + 1 : y;
+                const [zdx, zdy] = this.getSceneDimensionsAtZ(bz * dz, tempV2);
+                const kx = zdx / dx;
+                const ky = zdy / dy;
+                const x = (bx + t * vx / dx) % kx;
+                const y = (by + t * vy / dy) % ky;
+                const tx = (x < 0 ? x + kx : x) - kx / 2;
+                const ty = (y < 0 ? y + ky : y) - ky / 2;
                 const tz = bz;
                 this._iCurrentPositions[i * 3] = tx;
                 this._iCurrentPositions[i * 3 + 1] = ty;
@@ -2038,12 +2193,26 @@
             }
             this._iMatrices.sort((a, b) => a.w_z - b.w_z);
         }
+        getSceneDimensionsAtZ(z, out) {
+            const cameraZ = this._dimensions.w;
+            if (z < cameraZ) {
+                z -= cameraZ;
+            }
+            else {
+                z += cameraZ;
+            }
+            const fov = degToRad(this._options.fov);
+            const height = 2 * Math.tan(fov / 2) * Math.abs(z);
+            const width = height / this._dimensions.y * this._dimensions.x;
+            return out
+                ? out.set(width + this._doubleMargin, height + this._doubleMargin)
+                : new Vec2(width + this._doubleMargin, height + this._doubleMargin);
+        }
         updateDimensions(dimensions) {
             const resChanged = !dimensions.equals(this._dimensions);
             if (resChanged) {
-                this._dimensions.setFromVec3(dimensions);
+                this._dimensions.setFromVec4(dimensions);
                 this._sceneDimensions.set(dimensions.x + this._doubleMargin, dimensions.y + this._doubleMargin, dimensions.z);
-                this._halfDimentions.set(this._sceneDimensions.x / 2, this._sceneDimensions.y / 2, this._sceneDimensions.z / 2);
             }
             return resChanged;
         }
@@ -2164,9 +2333,11 @@
     }
   `;
             this._lastResolution = new Vec2();
-            this._dimensions = new Vec3();
+            this._dimensions = new Vec4();
             this._gl = gl;
             this.fixContext();
+            this._fov = options.fov;
+            this._depth = options.depth;
             this._program = new InstancedAnimationProgram(gl, this._vertexShader, this._fragmentShader);
             this._data = new DotAnimationWebGlData(options);
             if (!options.textureUrl) {
@@ -2182,22 +2353,19 @@
         prepareNextFrame(resolution, pointerPosition, pointerDown, elapsedTime) {
             const resChanged = !resolution.equals(this._lastResolution);
             if (resChanged) {
-                const fov = 120;
-                const depth = 100;
-                const near = Math.tan(0.5 * Math.PI - 0.5 * degToRad(fov)) * resolution.y / 2;
+                const near = Math.tan(0.5 * Math.PI - 0.5 * degToRad(this._fov)) * resolution.y / 2;
                 this.resize(resolution);
                 this._program.setIntVecUniform("uResolution", resolution);
                 this._lastResolution.setFromVec2(resolution);
-                this._dimensions.set(resolution.x, resolution.y, depth);
+                this._dimensions.set(resolution.x, resolution.y, this._depth, near);
                 this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);
                 const viewMatrix = new Mat4().applyTranslation(0, 0, -near);
                 this._program.setFloatMatUniform("uView", viewMatrix);
                 const outerSize = this._data.sceneDimensions;
                 const modelMatrix = new Mat4()
-                    .applyTranslation(-0.5, -0.5, 0)
-                    .applyScaling(outerSize.x, outerSize.y, depth);
+                    .applyScaling(outerSize.x, outerSize.y, this._depth);
                 this._program.setFloatMatUniform("uModel", modelMatrix);
-                const projectionMatrix = Mat4.buildPerspective(near, near + depth, -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
+                const projectionMatrix = Mat4.buildPerspective(near, near + this._depth + 1, -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
                 this._program.setFloatMatUniform("uProjection", projectionMatrix);
                 this._program.setInstancedBufferAttribute("aMatInst", this._data.matrix, { vectorSize: 4, vectorNumber: 4, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW });
                 this._program.setInstancedBufferAttribute("aColorInst", this._data.color, { vectorSize: 4, vectorNumber: 1, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW });

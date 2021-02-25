@@ -57,17 +57,20 @@ export class Mat3 implements Mat {
   }  
 
   static multiply(m1: Mat3, m2: Mat3): Mat3 {    
+    const [a11,a12,a13,a21,a22,a23,a31,a32,a33] = m1._matrix; 
+    const [b11,b12,b13,b21,b22,b23,b31,b32,b33] = m2._matrix;
+
     const m = new Mat3();
     m.set(
-      m1.x_x * m2.x_x + m1.x_y * m2.y_x + m1.x_z * m2.z_x,
-      m1.x_x * m2.x_y + m1.x_y * m2.y_y + m1.x_z * m2.z_y,
-      m1.x_x * m2.x_z + m1.x_y * m2.y_z + m1.x_z * m2.z_z,
-      m1.y_x * m2.x_x + m1.y_y * m2.y_x + m1.y_z * m2.z_x,
-      m1.y_x * m2.x_y + m1.y_y * m2.y_y + m1.y_z * m2.z_y,
-      m1.y_x * m2.x_z + m1.y_y * m2.y_z + m1.y_z * m2.z_z,
-      m1.z_x * m2.x_x + m1.z_y * m2.y_x + m1.z_z * m2.z_x,
-      m1.z_x * m2.x_y + m1.z_y * m2.y_y + m1.z_z * m2.z_y,
-      m1.z_x * m2.x_z + m1.z_y * m2.y_z + m1.z_z * m2.z_z
+      a11 * b11 + a12 * b21 + a13 * b31,
+      a11 * b12 + a12 * b22 + a13 * b32,
+      a11 * b13 + a12 * b23 + a13 * b33,
+      a21 * b11 + a22 * b21 + a23 * b31,
+      a21 * b12 + a22 * b22 + a23 * b32,
+      a21 * b13 + a22 * b23 + a23 * b33,
+      a31 * b11 + a32 * b21 + a33 * b31,
+      a31 * b12 + a32 * b22 + a33 * b32,
+      a31 * b13 + a32 * b23 + a33 * b33,
     );
     return m;
   }
@@ -228,14 +231,18 @@ export class Mat3 implements Mat {
   }  
 
   multiply(m: Mat3): Mat3 {
-    this._matrix[0] = this.x_x * m.x_x + this.x_y * m.y_x + this.x_z * m.z_x;
-    this._matrix[1] = this.x_x * m.x_y + this.x_y * m.y_y + this.x_z * m.z_y;
-    this._matrix[2] = this.x_x * m.x_z + this.x_y * m.y_z + this.x_z * m.z_z;
-    this._matrix[4] = this.y_x * m.x_x + this.y_y * m.y_x + this.y_z * m.z_x;
-    this._matrix[5] = this.y_x * m.x_y + this.y_y * m.y_y + this.y_z * m.z_y;
-    this._matrix[6] = this.y_x * m.x_z + this.y_y * m.y_z + this.y_z * m.z_z;
-    this._matrix[7] = this.z_x * m.x_x + this.z_y * m.y_x + this.z_z * m.z_x;
-    this._matrix[8] = this.z_x * m.x_y + this.z_y * m.y_y + this.z_z * m.z_y;
+    const [a11,a12,a13,a21,a22,a23,a31,a32,a33] = this._matrix; 
+    const [b11,b12,b13,b21,b22,b23,b31,b32,b33] = m._matrix;  
+
+    this._matrix[0] = a11 * b11 + a12 * b21 + a13 * b31;
+    this._matrix[1] = a11 * b12 + a12 * b22 + a13 * b32;
+    this._matrix[2] = a11 * b13 + a12 * b23 + a13 * b33;
+    this._matrix[3] = a21 * b11 + a22 * b21 + a23 * b31;
+    this._matrix[4] = a21 * b12 + a22 * b22 + a23 * b32;
+    this._matrix[5] = a21 * b13 + a22 * b23 + a23 * b33;
+    this._matrix[6] = a31 * b11 + a32 * b21 + a33 * b31;
+    this._matrix[7] = a31 * b12 + a32 * b22 + a33 * b32;
+    this._matrix[8] = a31 * b13 + a32 * b23 + a33 * b33;
 
     return this;
   }

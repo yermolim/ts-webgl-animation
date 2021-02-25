@@ -5,6 +5,8 @@ interface IAnimationOptions {
 
   fixedNumber: number;
   density: number;
+  depth: number;
+  fov: number;
   size: [min: number, max: number];
   velocityX: [min: number, max: number];
   velocityY: [min: number, max: number];

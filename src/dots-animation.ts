@@ -1,10 +1,11 @@
 import { getRandomUuid } from "./common";
 import { IAnimation, IAnimationOptions, 
   IWebGlAnimationControlType, IWebGlAnimationControl} from "./interfaces";
-import { degToRad, getRandomArrayElement, getRandomFloat } from "./math/common";
+import { degToRad, getRandomArrayElement, getRandomFloat, Vec } from "./math/common";
 import { Mat4 } from "./math/mat4";
 import { Vec2 } from "./math/vec2";
 import { Vec3 } from "./math/vec3";
+import { Vec4 } from "./math/vec4";
 import { DotAnimationOptions } from "./options";
 import { bufferUsageTypes } from "./webgl/common";
 import { Primitive } from "./webgl/primitives/common";
@@ -208,14 +209,10 @@ class DotAnimationWebGlData {
   private _margin: number;
   private _doubleMargin: number;  
   
-  private _dimensions = new Vec3();
+  private _dimensions = new Vec4();  
   private _sceneDimensions = new Vec3();
   get sceneDimensions(): Vec3 {
     return this._sceneDimensions;
-  }
-  private _halfDimentions = new Vec3();
-  get halfDimentions(): Vec3 {
-    return this._halfDimentions;
   }
 
   constructor(options: DotAnimationOptions) { 
@@ -228,20 +225,21 @@ class DotAnimationWebGlData {
     this._primitive = rect;
   }
 
-  updateData(dimensions: Vec3, pointerPosition: Vec2, 
+  updateData(dimensions: Vec4, pointerPosition: Vec2, 
     pointerDown: boolean, elapsedTime: number) {  
 
     if (this.updateDimensions(dimensions)) {
       this.updateLength();
     }
 
-    const {x: dx, y: dy} = this._sceneDimensions;
+    const {x: dx, y: dy, z: dz} = this._sceneDimensions;
     const t = elapsedTime;
+    const tempV2 = new Vec2(); // a temp vec2 for the scene dimensions at a given Z
 
     for (let i = 0; i < this._length; i++) {      
-      const sx = this._iSizes[i * 3] / dx;
-      const sy = this._iSizes[i * 3 + 1] / dy;
-      const sz = this._iSizes[i * 3 + 2];
+      const sx = this._iSizes[i * 3] / dx; // instance width in px
+      const sy = this._iSizes[i * 3 + 1] / dy; // instance height in px
+      const sz = this._iSizes[i * 3 + 2]; // instance depth in px
       
       const bx = this._iBasePositions[i * 3];
       const by = this._iBasePositions[i * 3 + 1];
@@ -250,39 +248,60 @@ class DotAnimationWebGlData {
       const vx = this._iVelocities[i * 3];
       const vy = this._iVelocities[i * 3 + 1];
 
-      // update positions
-      const x = (bx + t * vx / dx) % 1;
-      const y = (by + t * vy / dy) % 1;
+      // get visible bound factor for the given Z (kx = ky = 1 at Z = 0)
+      const [zdx, zdy] = this.getSceneDimensionsAtZ(bz * dz, tempV2);
+      const kx = zdx / dx;
+      const ky = zdy / dy;
 
-      const tx = x < 0 ? x + 1 : x; // ???
-      const ty = y < 0 ? y + 1 : y;
+      // update positions
+      // keep instances inside the scene using remainder operator
+      const x = (bx + t * vx / dx) % kx;
+      const y = (by + t * vy / dy) % ky;
+
+      // translate instance taking into account that the scene center should be at 0,0
+      const tx = (x < 0 ? x + kx : x) - kx / 2;
+      const ty = (y < 0 ? y + ky : y) - ky / 2;
       const tz = bz;
 
+      // set current positions for further processing
       this._iCurrentPositions[i * 3] = tx;
       this._iCurrentPositions[i * 3 + 1] = ty;
       this._iCurrentPositions[i * 3 + 2] = tz;
 
-      // update matrices
+      // update instance matrices
       this._iMatrices[i].reset().applyScaling(sx, sy, sz).applyTranslation(tx, ty, tz);
     }
 
-    // sort by depth
+    // sort instance matrices by depth
     this._iMatrices.sort((a, b) => a.w_z - b.w_z);
   }
 
-  private updateDimensions(dimensions: Vec3): boolean {    
+  private getSceneDimensionsAtZ(z: number, out?: Vec2): Vec2 {
+    const cameraZ = this._dimensions.w;
+    if (z < cameraZ) {
+      z -= cameraZ;
+    } else {
+      z += cameraZ;
+    }
+  
+    const fov = degToRad(this._options.fov); 
+    const height = 2 * Math.tan(fov / 2) * Math.abs(z);
+    const width = height / this._dimensions.y * this._dimensions.x;
+
+    return out
+      ? out.set(width + this._doubleMargin, height + this._doubleMargin)
+      : new Vec2(width + this._doubleMargin, height + this._doubleMargin);
+  }
+
+  private updateDimensions(dimensions: Vec4): boolean {    
     const resChanged = !dimensions.equals(this._dimensions);
     if (resChanged) {
-      this._dimensions.setFromVec3(dimensions);
+      this._dimensions.setFromVec4(dimensions);
+      // scene dimensions include margins to prevent flickering at the view borders
       this._sceneDimensions.set(
         dimensions.x + this._doubleMargin,
         dimensions.y + this._doubleMargin,
         dimensions.z,
-      );
-      this._halfDimentions.set(
-        this._sceneDimensions.x / 2,
-        this._sceneDimensions.y / 2,
-        this._sceneDimensions.z / 2,
       );
     }
     return resChanged;
@@ -342,7 +361,7 @@ class DotAnimationWebGlData {
       for (let i = basePositionsIndex; i < newBasePositionsLength; i += 3) {
         newBasePositions.set([getRandomFloat(0, 1), getRandomFloat(0, 1), getRandomFloat(-1, 0)], i);
       }
-      this._iBasePositions = newBasePositions;
+      this._iBasePositions = newBasePositions;      
 
       // velocities
       const newVelocitiesLength = length * 3;
@@ -423,13 +442,19 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
 
   private _textureMap: number[];
 
+  private _fov: number;
+  private _depth: number;
   private _lastResolution = new Vec2();
-  private _dimensions = new Vec3();
+  private _dimensions = new Vec4();
+
   private _data: DotAnimationWebGlData;
 
   constructor(gl: WebGLRenderingContext, options: IAnimationOptions) {
     this._gl = gl;
     this.fixContext();
+
+    this._fov = options.fov;
+    this._depth = options.depth;
 
     this._program = new InstancedAnimationProgram(gl, this._vertexShader, this._fragmentShader);
     this._data = new DotAnimationWebGlData(options);
@@ -451,16 +476,14 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
     const resChanged = !resolution.equals(this._lastResolution);
     if (resChanged) {   
       // TODO: move to options
-      const fov = 120;
-      const depth = 100;
-      const near = Math.tan(0.5 * Math.PI - 0.5 * degToRad(fov)) * resolution.y / 2;
+      const near = Math.tan(0.5 * Math.PI - 0.5 * degToRad(this._fov)) * resolution.y / 2;
 
       //update dimensions
       this.resize(resolution);     
       this._program.setIntVecUniform("uResolution", resolution);
 
       this._lastResolution.setFromVec2(resolution);
-      this._dimensions.set(resolution.x, resolution.y, depth);
+      this._dimensions.set(resolution.x, resolution.y, this._depth, near);
       
       // update data
       this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);  
@@ -471,11 +494,11 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
 
       const outerSize = this._data.sceneDimensions;
       const modelMatrix = new Mat4()
-        .applyTranslation(-0.5, -0.5, 0)
-        .applyScaling(outerSize.x, outerSize.y, depth);
+        // .applyTranslation(-0.5, -0.5, 0)
+        .applyScaling(outerSize.x, outerSize.y, this._depth);
       this._program.setFloatMatUniform("uModel", modelMatrix);
       
-      const projectionMatrix = Mat4.buildPerspective(near, near + depth, 
+      const projectionMatrix = Mat4.buildPerspective(near, near + this._depth + 1, 
         -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
       this._program.setFloatMatUniform("uProjection", projectionMatrix); 
       //#endregion  
