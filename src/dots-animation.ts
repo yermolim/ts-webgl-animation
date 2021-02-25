@@ -185,23 +185,32 @@ class DotAnimationWebGlData {
   }
 
   private _iColors: Float32Array; // length x4
-  get color(): Float32Array {
+  get iColor(): Float32Array {
     return this._iColors;
   }
+
   private _iSizes: Float32Array; // length x3
   private _iBasePositions: Float32Array; // length x3
   private _iVelocities: Float32Array; // length x3
   private _iAngularVelocities: Float32Array; // length
-
   private _iCurrentPositions: Float32Array; // length x3
-  private _iMatrices: Mat4[]; 
-  get matrix(): Float32Array {  
+  private _iData: {mat: Mat4; uv: Vec2}[]; 
+  private _iDataSorted: {mat: Mat4; uv: Vec2}[]; 
+  get iMatrix(): Float32Array {  
     // TODO: optimize  
     const matrices = new Float32Array(this._length * 16);
     for (let i = 0; i < this._length; i++) {
-      matrices.set(this._iMatrices[i].toFloatArray(), i * 16);
+      matrices.set(this._iDataSorted[i].mat.toFloatArray(), i * 16);
     }
     return matrices;
+  }
+  get iUv(): Float32Array {  
+    // TODO: optimize  
+    const uvs = new Float32Array(this._length * 2);
+    for (let i = 0; i < this._length; i++) {
+      uvs.set(this._iDataSorted[i].uv.toFloatArray(), i * 2);
+    }
+    return uvs;
   }
 
   private _options: DotAnimationOptions;
@@ -247,10 +256,23 @@ class DotAnimationWebGlData {
       
       const vx = this._iVelocities[i * 3];
       const vy = this._iVelocities[i * 3 + 1];
+      const vz = this._iVelocities[i * 3 + 2];
       const wz = this._iAngularVelocities[i];
+      
+      // calculate depth
+      const lastDepth = this._iCurrentPositions[i * 3 + 2] || bz;
+      let tz = lastDepth + vz / dz;
+      // reverse the instance Z velocity vector if the current depth is out of bounds
+      if (tz > -0.001) {
+        tz = -0.001;        
+        this._iVelocities[i * 3 + 2] = -vz;
+      } else if (tz < -0.999) {
+        tz = -0.999;        
+        this._iVelocities[i * 3 + 2] = -vz;
+      }
 
       // get visible bound factor for the given Z (kx = ky = 1 at Z = 0)
-      const [zdx, zdy] = this.getSceneDimensionsAtZ(bz * dz, tempV2);
+      const [zdx, zdy] = this.getSceneDimensionsAtZ(tz * dz, tempV2);
       const kx = zdx / dx;
       const ky = zdy / dy;
 
@@ -262,7 +284,6 @@ class DotAnimationWebGlData {
       // translate instance taking into account that the scene center should be at 0,0
       const tx = (x < 0 ? x + kx : x) - kx / 2;
       const ty = (y < 0 ? y + ky : y) - ky / 2;
-      const tz = bz;
 
       // set current positions for further processing
       this._iCurrentPositions[i * 3] = tx;
@@ -270,14 +291,14 @@ class DotAnimationWebGlData {
       this._iCurrentPositions[i * 3 + 2] = tz;
 
       // update instance matrices
-      this._iMatrices[i].reset()
+      this._iData[i].mat.reset()
         .applyRotation("z", t * wz % (2 * Math.PI))
         .applyScaling(sx, sy, sz)
         .applyTranslation(tx, ty, tz);
     }
 
-    // sort instance matrices by depth
-    this._iMatrices.sort((a, b) => a.w_z - b.w_z);
+    // sort instance matrices/uvs by depth
+    this._iDataSorted.sort((a, b) => a.mat.w_z - b.mat.w_z);
   }
 
   private getSceneDimensionsAtZ(z: number, out?: Vec2): Vec2 {
@@ -363,7 +384,7 @@ class DotAnimationWebGlData {
         newBasePositions.set(oldBasePositions.subarray(0, basePositionsIndex), 0);
       }      
       for (let i = basePositionsIndex; i < newBasePositionsLength; i += 3) {
-        newBasePositions.set([getRandomFloat(0, 1), getRandomFloat(0, 1), getRandomFloat(-1, 0)], i);
+        newBasePositions.set([getRandomFloat(0, 1), getRandomFloat(0, 1), getRandomFloat(-0.999, -0.001)], i);
       }
       this._iBasePositions = newBasePositions;      
 
@@ -379,7 +400,7 @@ class DotAnimationWebGlData {
       for (let i = velocitiesIndex; i < newVelocitiesLength;) {
         newVelocities[i++] = getRandomFloat(this._options.velocityX[0], this._options.velocityX[1]);
         newVelocities[i++] = getRandomFloat(this._options.velocityY[0], this._options.velocityY[1]);
-        newVelocities[i++] = 1;
+        newVelocities[i++] = getRandomFloat(this._options.velocityZ[0], this._options.velocityZ[1]);
       }
       this._iVelocities = newVelocities;
       
@@ -401,11 +422,20 @@ class DotAnimationWebGlData {
 
       this._iCurrentPositions = new Float32Array(length * 3);
 
-      const matrices: Mat4[] = new Array(length);
+      const data: {mat: Mat4; uv: Vec2}[] = new Array(length);
+      let t: number;
       for (let j = 0; j < length; j++) {
-        matrices[j] = new Mat4();
+        t = j % 2 ? j + 1 : j;
+        data[j] = {
+          mat: new Mat4(),
+          uv: new Vec2(
+            this._options.textureMap[t % this._options.textureMap.length],
+            this._options.textureMap[(t + 1) % this._options.textureMap.length],
+          ),
+        };
       }
-      this._iMatrices = matrices;
+      this._iData = data;
+      this._iDataSorted = data.slice();
 
       this._length = length;
     }
@@ -460,8 +490,6 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
   private _gl: WebGLRenderingContext;
   private _program: InstancedAnimationProgram;
 
-  private _textureMap: number[];
-
   private _fov: number;
   private _depth: number;
   private _lastResolution = new Vec2();
@@ -483,7 +511,6 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
     if (!options.textureUrl) {
       throw new Error("Texture URL not defined");
     }
-    this._textureMap = options.textureMap;
     this._program.loadAndSet2dTexture("uTex", options.textureUrl);    
     this._program.setIntUniform("uTexSize", options.textureSize || 1); // atlas row tile count
     
@@ -518,24 +545,18 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
         .applyScaling(outerSize.x, outerSize.y, this._depth);
       this._program.setFloatMatUniform("uModel", modelMatrix);
       
-      const projectionMatrix = Mat4.buildPerspective(near, near + this._depth + 1, 
+      const projectionMatrix = Mat4.buildPerspective(near, near + this._depth, 
         -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
       this._program.setFloatMatUniform("uProjection", projectionMatrix); 
       //#endregion  
 
       //#region buffers
-      this._program.setInstancedBufferAttribute("aMatInst", this._data.matrix, 
-        {vectorSize: 4, vectorNumber: 4, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW});
-
-      this._program.setInstancedBufferAttribute("aColorInst", this._data.color, 
+      this._program.setInstancedBufferAttribute("aColorInst", this._data.iColor, 
         {vectorSize: 4, vectorNumber: 1, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW}); 
-
-      const textureMapArray = new Float32Array(this._data.length * 2);
-      for (let i = 0; i < textureMapArray.length; i++) {
-        textureMapArray[i] = this._textureMap[i % this._textureMap.length];
-      }
-      this._program.setInstancedBufferAttribute("aUvInst", textureMapArray,
-        {vectorSize: 2, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW});   
+      this._program.setInstancedBufferAttribute("aMatInst", this._data.iMatrix, 
+        {vectorSize: 4, vectorNumber: 4, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW});
+      this._program.setInstancedBufferAttribute("aUvInst", this._data.iUv,
+        {vectorSize: 2, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW});
       //#endregion   
         
       //#region debug
@@ -552,13 +573,9 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
       //#endregion
     } else {
       this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);
+      this._program.updateBufferAttribute("aMatInst", this._data.iMatrix, 0);
+      this._program.updateBufferAttribute("aUvInst", this._data.iUv, 0);
     }
-
-    // console.log(Math.max(...this._data.matrix.filter((x, i) => !(i % 12))));
-    // console.log(Math.max(...this._data.matrix.filter((x, i) => !(i % 13))));
-    // console.log(Math.max(...this._data.matrix.filter((x, i) => !(i % 14))));
-
-    this._program.updateBufferAttribute("aMatInst", this._data.matrix, 0);
   }
 
   renderFrame() {    

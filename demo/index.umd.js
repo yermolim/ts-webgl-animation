@@ -1083,6 +1083,7 @@
             this.size = [16, 64];
             this.velocityX = [-0.2, 0.2];
             this.velocityY = [-0.2, 0.2];
+            this.velocityZ = [-0.1, 0.1];
             this.angularVelocity = [-0.001, 0.001];
             this.blur = 1;
             this.colors = [[255, 255, 255], [255, 244, 193], [250, 239, 219]];
@@ -2150,15 +2151,22 @@
         get length() {
             return this._length;
         }
-        get color() {
+        get iColor() {
             return this._iColors;
         }
-        get matrix() {
+        get iMatrix() {
             const matrices = new Float32Array(this._length * 16);
             for (let i = 0; i < this._length; i++) {
-                matrices.set(this._iMatrices[i].toFloatArray(), i * 16);
+                matrices.set(this._iDataSorted[i].mat.toFloatArray(), i * 16);
             }
             return matrices;
+        }
+        get iUv() {
+            const uvs = new Float32Array(this._length * 2);
+            for (let i = 0; i < this._length; i++) {
+                uvs.set(this._iDataSorted[i].uv.toFloatArray(), i * 2);
+            }
+            return uvs;
         }
         get sceneDimensions() {
             return this._sceneDimensions;
@@ -2179,24 +2187,34 @@
                 const bz = this._iBasePositions[i * 3 + 2];
                 const vx = this._iVelocities[i * 3];
                 const vy = this._iVelocities[i * 3 + 1];
+                const vz = this._iVelocities[i * 3 + 2];
                 const wz = this._iAngularVelocities[i];
-                const [zdx, zdy] = this.getSceneDimensionsAtZ(bz * dz, tempV2);
+                const lastDepth = this._iCurrentPositions[i * 3 + 2] || bz;
+                let tz = lastDepth + vz / dz;
+                if (tz > -0.001) {
+                    tz = -0.001;
+                    this._iVelocities[i * 3 + 2] = -vz;
+                }
+                else if (tz < -0.999) {
+                    tz = -0.999;
+                    this._iVelocities[i * 3 + 2] = -vz;
+                }
+                const [zdx, zdy] = this.getSceneDimensionsAtZ(tz * dz, tempV2);
                 const kx = zdx / dx;
                 const ky = zdy / dy;
                 const x = (bx + t * vx / dx) % kx;
                 const y = (by + t * vy / dy) % ky;
                 const tx = (x < 0 ? x + kx : x) - kx / 2;
                 const ty = (y < 0 ? y + ky : y) - ky / 2;
-                const tz = bz;
                 this._iCurrentPositions[i * 3] = tx;
                 this._iCurrentPositions[i * 3 + 1] = ty;
                 this._iCurrentPositions[i * 3 + 2] = tz;
-                this._iMatrices[i].reset()
+                this._iData[i].mat.reset()
                     .applyRotation("z", t * wz % (2 * Math.PI))
                     .applyScaling(sx, sy, sz)
                     .applyTranslation(tx, ty, tz);
             }
-            this._iMatrices.sort((a, b) => a.w_z - b.w_z);
+            this._iDataSorted.sort((a, b) => a.mat.w_z - b.mat.w_z);
         }
         getSceneDimensionsAtZ(z, out) {
             const cameraZ = this._dimensions.w;
@@ -2266,7 +2284,7 @@
                     newBasePositions.set(oldBasePositions.subarray(0, basePositionsIndex), 0);
                 }
                 for (let i = basePositionsIndex; i < newBasePositionsLength; i += 3) {
-                    newBasePositions.set([getRandomFloat(0, 1), getRandomFloat(0, 1), getRandomFloat(-1, 0)], i);
+                    newBasePositions.set([getRandomFloat(0, 1), getRandomFloat(0, 1), getRandomFloat(-0.999, -0.001)], i);
                 }
                 this._iBasePositions = newBasePositions;
                 const newVelocitiesLength = length * 3;
@@ -2280,7 +2298,7 @@
                 for (let i = velocitiesIndex; i < newVelocitiesLength;) {
                     newVelocities[i++] = getRandomFloat(this._options.velocityX[0], this._options.velocityX[1]);
                     newVelocities[i++] = getRandomFloat(this._options.velocityY[0], this._options.velocityY[1]);
-                    newVelocities[i++] = 1;
+                    newVelocities[i++] = getRandomFloat(this._options.velocityZ[0], this._options.velocityZ[1]);
                 }
                 this._iVelocities = newVelocities;
                 const newAngularVelocitiesLength = length;
@@ -2296,11 +2314,18 @@
                 }
                 this._iAngularVelocities = newAngularVelocities;
                 this._iCurrentPositions = new Float32Array(length * 3);
-                const matrices = new Array(length);
+                const data = new Array(length);
+                let t;
                 for (let j = 0; j < length; j++) {
-                    matrices[j] = new Mat4();
+                    t = j % 2 ? j + 1 : j;
+                    data[j] = {
+                        mat: new Mat4(),
+                        uv: new Vec2(this._options.textureMap[t % this._options.textureMap.length], this._options.textureMap[(t + 1) % this._options.textureMap.length]),
+                    };
                 }
-                this._iMatrices = matrices;
+                this._iData = data;
+                this._iDataSorted = data.slice();
+                console.log(data);
                 this._length = length;
             }
         }
@@ -2360,7 +2385,6 @@
             if (!options.textureUrl) {
                 throw new Error("Texture URL not defined");
             }
-            this._textureMap = options.textureMap;
             this._program.loadAndSet2dTexture("uTex", options.textureUrl);
             this._program.setIntUniform("uTexSize", options.textureSize || 1);
             this._program.setBufferAttribute("aPosition", this._data.position, { vectorSize: 3 });
@@ -2382,20 +2406,17 @@
                 const modelMatrix = new Mat4()
                     .applyScaling(outerSize.x, outerSize.y, this._depth);
                 this._program.setFloatMatUniform("uModel", modelMatrix);
-                const projectionMatrix = Mat4.buildPerspective(near, near + this._depth + 1, -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
+                const projectionMatrix = Mat4.buildPerspective(near, near + this._depth, -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
                 this._program.setFloatMatUniform("uProjection", projectionMatrix);
-                this._program.setInstancedBufferAttribute("aMatInst", this._data.matrix, { vectorSize: 4, vectorNumber: 4, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW });
-                this._program.setInstancedBufferAttribute("aColorInst", this._data.color, { vectorSize: 4, vectorNumber: 1, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW });
-                const textureMapArray = new Float32Array(this._data.length * 2);
-                for (let i = 0; i < textureMapArray.length; i++) {
-                    textureMapArray[i] = this._textureMap[i % this._textureMap.length];
-                }
-                this._program.setInstancedBufferAttribute("aUvInst", textureMapArray, { vectorSize: 2, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW });
+                this._program.setInstancedBufferAttribute("aColorInst", this._data.iColor, { vectorSize: 4, vectorNumber: 1, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW });
+                this._program.setInstancedBufferAttribute("aMatInst", this._data.iMatrix, { vectorSize: 4, vectorNumber: 4, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW });
+                this._program.setInstancedBufferAttribute("aUvInst", this._data.iUv, { vectorSize: 2, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW });
             }
             else {
                 this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);
+                this._program.updateBufferAttribute("aMatInst", this._data.iMatrix, 0);
+                this._program.updateBufferAttribute("aUvInst", this._data.iUv, 0);
             }
-            this._program.updateBufferAttribute("aMatInst", this._data.matrix, 0);
         }
         renderFrame() {
             this._program.triangleCount = this._data.triangles;
