@@ -10,6 +10,7 @@ class DotAnimationOptions implements IAnimationOptions {
   size: [min: number, max: number] = [16, 64];
   velocityX: [min: number, max: number] = [-0.2, 0.2];
   velocityY: [min: number, max: number] = [-0.2, 0.2];
+  angularVelocity: [min: number, max: number] = [-0.001, 0.001];
   
   blur = 1;
   colors: [r: number, g: number, b: number][] = [[255, 255, 255], [255, 244, 193], [250, 239, 219]];  

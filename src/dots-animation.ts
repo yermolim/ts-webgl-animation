@@ -175,11 +175,10 @@ class DotAnimationWebGlData {
   get index(): Uint32Array {
     return this._primitive.indices;
   }
-
-  private _triangles: number;
   get triangles(): number {
     return this._primitive.indices.length / 3;
   }
+
   private _length: number;
   get length(): number {
     return this._length;
@@ -192,6 +191,7 @@ class DotAnimationWebGlData {
   private _iSizes: Float32Array; // length x3
   private _iBasePositions: Float32Array; // length x3
   private _iVelocities: Float32Array; // length x3
+  private _iAngularVelocities: Float32Array; // length
 
   private _iCurrentPositions: Float32Array; // length x3
   private _iMatrices: Mat4[]; 
@@ -247,6 +247,7 @@ class DotAnimationWebGlData {
       
       const vx = this._iVelocities[i * 3];
       const vy = this._iVelocities[i * 3 + 1];
+      const wz = this._iAngularVelocities[i];
 
       // get visible bound factor for the given Z (kx = ky = 1 at Z = 0)
       const [zdx, zdy] = this.getSceneDimensionsAtZ(bz * dz, tempV2);
@@ -269,7 +270,10 @@ class DotAnimationWebGlData {
       this._iCurrentPositions[i * 3 + 2] = tz;
 
       // update instance matrices
-      this._iMatrices[i].reset().applyScaling(sx, sy, sz).applyTranslation(tx, ty, tz);
+      this._iMatrices[i].reset()
+        .applyRotation("z", t * wz % (2 * Math.PI))
+        .applyScaling(sx, sy, sz)
+        .applyTranslation(tx, ty, tz);
     }
 
     // sort instance matrices by depth
@@ -378,6 +382,22 @@ class DotAnimationWebGlData {
         newVelocities[i++] = 1;
       }
       this._iVelocities = newVelocities;
+      
+      // angular velocities
+      const newAngularVelocitiesLength = length;
+      const newAngularVelocities = new Float32Array(newAngularVelocitiesLength);
+      const oldAngularVelocities = this._iAngularVelocities;
+      const oldAngularVelocitiesLength = oldAngularVelocities?.length || 0;
+      const angularVelocitiesIndex = Math.min(newAngularVelocitiesLength, oldAngularVelocitiesLength);
+      if (oldAngularVelocitiesLength) {
+        newAngularVelocities.set(oldAngularVelocities.subarray(0, angularVelocitiesIndex), 0);
+      }
+      for (let i = angularVelocitiesIndex; i < newAngularVelocitiesLength; i++) {
+        newAngularVelocities[i] = getRandomFloat(
+          this._options.angularVelocity[0], 
+          this._options.angularVelocity[1]);
+      }
+      this._iAngularVelocities = newAngularVelocities;
 
       this._iCurrentPositions = new Float32Array(length * 3);
 

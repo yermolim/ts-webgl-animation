@@ -1083,6 +1083,7 @@
             this.size = [16, 64];
             this.velocityX = [-0.2, 0.2];
             this.velocityY = [-0.2, 0.2];
+            this.angularVelocity = [-0.001, 0.001];
             this.blur = 1;
             this.colors = [[255, 255, 255], [255, 244, 193], [250, 239, 219]];
             this.fixedOpacity = null;
@@ -2178,6 +2179,7 @@
                 const bz = this._iBasePositions[i * 3 + 2];
                 const vx = this._iVelocities[i * 3];
                 const vy = this._iVelocities[i * 3 + 1];
+                const wz = this._iAngularVelocities[i];
                 const [zdx, zdy] = this.getSceneDimensionsAtZ(bz * dz, tempV2);
                 const kx = zdx / dx;
                 const ky = zdy / dy;
@@ -2189,7 +2191,10 @@
                 this._iCurrentPositions[i * 3] = tx;
                 this._iCurrentPositions[i * 3 + 1] = ty;
                 this._iCurrentPositions[i * 3 + 2] = tz;
-                this._iMatrices[i].reset().applyScaling(sx, sy, sz).applyTranslation(tx, ty, tz);
+                this._iMatrices[i].reset()
+                    .applyRotation("z", t * wz % (2 * Math.PI))
+                    .applyScaling(sx, sy, sz)
+                    .applyTranslation(tx, ty, tz);
             }
             this._iMatrices.sort((a, b) => a.w_z - b.w_z);
         }
@@ -2278,6 +2283,18 @@
                     newVelocities[i++] = 1;
                 }
                 this._iVelocities = newVelocities;
+                const newAngularVelocitiesLength = length;
+                const newAngularVelocities = new Float32Array(newAngularVelocitiesLength);
+                const oldAngularVelocities = this._iAngularVelocities;
+                const oldAngularVelocitiesLength = oldAngularVelocities?.length || 0;
+                const angularVelocitiesIndex = Math.min(newAngularVelocitiesLength, oldAngularVelocitiesLength);
+                if (oldAngularVelocitiesLength) {
+                    newAngularVelocities.set(oldAngularVelocities.subarray(0, angularVelocitiesIndex), 0);
+                }
+                for (let i = angularVelocitiesIndex; i < newAngularVelocitiesLength; i++) {
+                    newAngularVelocities[i] = getRandomFloat(this._options.angularVelocity[0], this._options.angularVelocity[1]);
+                }
+                this._iAngularVelocities = newAngularVelocities;
                 this._iCurrentPositions = new Float32Array(length * 3);
                 const matrices = new Array(length);
                 for (let j = 0; j < length; j++) {

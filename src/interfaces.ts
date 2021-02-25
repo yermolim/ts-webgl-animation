@@ -10,6 +10,7 @@ interface IAnimationOptions {
   size: [min: number, max: number];
   velocityX: [min: number, max: number];
   velocityY: [min: number, max: number];
+  angularVelocity: [min: number, max: number];
   
   blur: number;
   colors: [r: number, g: number, b: number][];  
