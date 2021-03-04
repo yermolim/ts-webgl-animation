@@ -1,4 +1,4 @@
-import { AnimationOptions } from "../interfaces";
+import { AnimationOptions } from "../wgl-animation-interfaces";
 
 export class SpriteAnimationOptions implements AnimationOptions {
   expectedFps = 60;

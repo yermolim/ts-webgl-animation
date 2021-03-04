@@ -1,10 +1,10 @@
-import { degToRad, getRandomArrayElement, getRandomFloat } from "../math/common";
-import { Mat4 } from "../math/mat4";
-import { Vec2 } from "../math/vec2";
-import { Vec3 } from "../math/vec3";
-import { Vec4 } from "../math/vec4";
-import { Primitive } from "../webgl/primitives/primitive";
-import { Square } from "../webgl/primitives/square";
+import { degToRad, getRandomArrayElement, getRandomFloat } from "../../math/common";
+import { Mat4 } from "../../math/mat4";
+import { Vec2 } from "../../math/vec2";
+import { Vec3 } from "../../math/vec3";
+import { Vec4 } from "../../math/vec4";
+import { Primitive } from "../../webgl/primitives/primitive";
+import { Square } from "../../webgl/primitives/square";
 import { SpriteAnimationOptions } from "./sprite-animation-options";
 
 export class SpriteAnimationData {

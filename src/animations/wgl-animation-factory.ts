@@ -1,4 +1,4 @@
-import { AnimationOptions, IAnimation } from "./interfaces";
+import { IAnimation } from "./wgl-animation-interfaces";
 import { SpriteAnimationControl } from "./sprite-animation/sprite-animation-control";
 import { SpriteAnimationOptions } from "./sprite-animation/sprite-animation-options";
 import { WGLAnimation } from "./wgl-animation";

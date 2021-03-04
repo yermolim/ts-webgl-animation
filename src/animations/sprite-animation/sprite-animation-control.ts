@@ -1,9 +1,9 @@
-import { IWGLAnimationControl, AnimationOptions } from "../interfaces";
-import { degToRad } from "../math/common";
-import { Mat4 } from "../math/mat4";
-import { Vec2 } from "../math/vec2";
-import { Vec4 } from "../math/vec4";
-import { WGLInstancedProgram } from "../webgl/wgl-instanced-program";
+import { IWGLAnimationControl, AnimationOptions } from "../wgl-animation-interfaces";
+import { degToRad } from "../../math/common";
+import { Mat4 } from "../../math/mat4";
+import { Vec2 } from "../../math/vec2";
+import { Vec4 } from "../../math/vec4";
+import { WGLInstancedProgram } from "../../webgl/wgl-instanced-program";
 import { SpriteAnimationData } from "./sprite-animation-data";
 import { SpriteAnimationOptions } from "./sprite-animation-options";
 

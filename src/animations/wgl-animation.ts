@@ -1,7 +1,7 @@
-import { getRandomUuid } from "./common";
+import { getRandomUuid } from "../common";
 import { IAnimation, AnimationOptions, IWGLAnimationControlType, 
-  IWGLAnimationControl } from "./interfaces";
-import { Vec2 } from "./math/vec2";
+  IWGLAnimationControl } from "./wgl-animation-interfaces";
+import { Vec2 } from "../math/vec2";
 
 export class WGLAnimation implements IAnimation {
   private _options: AnimationOptions;

@@ -1,4 +1,4 @@
-import { Vec2 } from "./math/vec2";
+import { Vec2 } from "../math/vec2";
 
 interface AnimationOptions {
   expectedFps: number;
@@ -13,7 +13,7 @@ interface IAnimation {
 
 interface IAnimationControl {
   setPauseState(pauseState: boolean): void;
-  draw(mousePosition?: Position2, isMouseClicked?: boolean): void;
+  draw(mousePosition?: Vec2, isMouseClicked?: boolean): void;
 }
 
 type IAnimationControlType = 
@@ -31,10 +31,5 @@ interface IWGLAnimationControl {
 type IWGLAnimationControlType = 
     new(gl: WebGLRenderingContext, options: AnimationOptions) => IWGLAnimationControl;
 
-interface Position2 {
-  x: number;
-  y: number;
-}
-
-export { AnimationOptions, IAnimation, IAnimationControl, IAnimationControlType, Position2 as IPositionObject,
+export { AnimationOptions, IAnimation, IAnimationControl, IAnimationControlType,
   IWGLAnimationControl, IWGLAnimationControlType };
