@@ -1,4 +1,4 @@
-import { Primitive } from "./common";
+import { Primitive } from "./primitive";
 
 export class Square implements Primitive { 
   protected _normals: Float32Array;

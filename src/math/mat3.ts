@@ -1,4 +1,5 @@
 import { Mat } from "./common";
+import { Vec2 } from "./vec2";
 
 export class Mat3 implements Mat {
   readonly length = 9;
@@ -146,8 +147,8 @@ export class Mat3 implements Mat {
     const c = Math.cos(theta);
     const s = Math.sin(theta);
     return new Mat3().set(
-      c, s, 0,
-      -s, c, 0,
+      c, -s, 0,
+      s, c, 0,
       0, 0, 1
     );
   }
@@ -307,6 +308,27 @@ export class Mat3 implements Mat {
     const [a,b,c,d,e,f,g,h,i] = this._matrix;
     return a*e*i-a*f*h + b*f*g-b*d*i + c*d*h-c*e*g;
   }
+  
+  getTRS(): {t: Vec2; r: number; s: Vec2} {
+    const t = new Vec2(this.z_x, this.z_y);
+    
+    const s_x = Math.sqrt(this.x_x * this.x_x + this.x_y * this.x_y); 
+    const s_y = Math.sqrt(this.y_x * this.y_x + this.y_y * this.y_y);
+    const s = new Vec2(s_x, s_y);
+
+    const sign = Math.atan(- this.x_y / this.x_x);
+    const angle = Math.acos(this.x_x / s_x);
+
+    let r: number;
+    if ((angle > Math.PI / 2 && sign > 0)
+      || (angle < Math.PI / 2 && sign < 0)) {
+      r = 2 * Math.PI - angle;
+    } else {
+      r = angle;
+    }
+
+    return {t, r, s};
+  }
 
   equals(m: Mat3, precision = 6): boolean {
     for (let i = 0; i < this.length; i++) {
@@ -345,7 +367,7 @@ export class Mat3 implements Mat {
   } 
 
   *[Symbol.iterator](): Iterator<number> {
-    for (let i = 0; i < 16; i++) {      
+    for (let i = 0; i < 9; i++) {      
       yield this._matrix[i];
     }
   }

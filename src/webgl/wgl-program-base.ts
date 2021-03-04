@@ -1,14 +1,15 @@
-/* eslint-disable no-bitwise */
-import { isPowerOf2, Mat, Vec } from "../math/common";
-import { Attribute, BufferInfo, BufferInfoOptions, ConstantInfo, IndexInfo } from "./attributes";
-import { shaderTypes, ShaderType, numberTypes, TypedArray, 
-  UniformType, uniformFloatTypes, uniformIntTypes, 
-  SamplerType, samplerTypes, TexelFormat, TexelType, texelTypes } from "./common";
-import { TextureArrayInfo, TextureInfo, Uniform, 
-  UniformFloatArrayInfo, UniformFloatInfo, 
-  UniformIntArrayInfo, UniformIntInfo } from "./uniforms";
+import { Vec, Mat, isPowerOf2 } from "../math/common";
+import { Attribute, ConstantInfo, BufferInfoOptions, 
+  BufferInfo, IndexInfo } from "./program-data/attributes";
+import { shaderTypes, ShaderType, TypedArray, numberTypes, 
+  UniformType, uniformIntTypes, uniformFloatTypes, 
+  SamplerType, TexelFormat, TexelType, texelTypes, 
+  samplerTypes } from "./program-data/common";
+import { Uniform, UniformIntInfo, UniformIntArrayInfo, 
+  UniformFloatInfo, UniformFloatArrayInfo, TextureInfo, 
+  TextureArrayInfo } from "./program-data/uniforms";
 
-export class AnimationProgram {  
+export abstract class WGLProgramBase {  
   protected readonly _extIndexed: OES_element_index_uint;
 
   protected readonly _gl: WebGLRenderingContext;
@@ -29,18 +30,15 @@ export class AnimationProgram {
   }
 
   protected _triangleCount = 0;
-  get triangleCount(): number {
-    return this._triangleCount;
-  }
-  set triangleCount(count: number) {
-    this._triangleCount = Math.max(0, count);
-  }
 
   constructor (gl: WebGLRenderingContext, 
-    vertexShaderSource: string, fragmentShaderSource: string) {
+    vertexShaderSource: string, 
+    fragmentShaderSource: string) {
 
-    const vertexShader = AnimationProgram.loadShader(gl, shaderTypes.VERTEX_SHADER, vertexShaderSource);
-    const fragmentShader = AnimationProgram.loadShader(gl, shaderTypes.FRAGMENT_SHADER, fragmentShaderSource);
+    const vertexShader = WGLProgramBase.loadShader(gl, 
+      shaderTypes.VERTEX_SHADER, vertexShaderSource);
+    const fragmentShader = WGLProgramBase.loadShader(gl, 
+      shaderTypes.FRAGMENT_SHADER, fragmentShaderSource);
   
     this._extIndexed = gl.getExtension("OES_element_index_uint");
 
@@ -75,36 +73,6 @@ export class AnimationProgram {
     } 
     return shader;  
   } 
-
-  render(clear = true) {
-    this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
-
-    if (clear) {
-      this.resetRender();
-    }
-    this.set();
-
-    const index = this._attributes.get("index");
-    if (index) {
-      this._gl.drawElements(this._gl.TRIANGLES, this._triangleCount * 3, index.type, this._offset);
-    } else {
-      this._gl.drawArrays(this._gl.TRIANGLES, this._offset, this._triangleCount * 3);
-    }
-  }
-
-  resetRender() {   
-    const gl = this._gl;
-
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-    gl.cullFace(gl.BACK);
-    gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST);
-
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  }
 
   destroy() {    
     this.clearUniforms();
@@ -325,16 +293,24 @@ export class AnimationProgram {
   //#endregion
 
   //#region texture
-  createTexture(data: Uint8Array | Uint16Array, type: SamplerType, 
+  createTexture(data: Uint8Array | Uint16Array | Float32Array, type: SamplerType, 
     texelFormal: TexelFormat, texelType: TexelType,
-    width: number, height: number): WebGLTexture {
+    width: number, height: number, forceNearestFilter = false): WebGLTexture {
 
-    if (data instanceof Uint8Array) {
-      if (texelType !== texelTypes.UNSIGNED_BYTE) {
-        throw new Error("Invalid texel type");
+    if (texelType === texelTypes.UNSIGNED_BYTE) {
+      if (!(data instanceof Uint8Array)) {     
+        throw new Error("Invalid data array type: must be Uint8Array");
+      }
+    } else if (texelType === texelTypes.FLOAT) {      
+      if (!(data instanceof Float32Array)) {    
+        throw new Error("Invalid data array type: must be Float32Array");
+      }
+      if (!this._gl.getExtension("OES_texture_float")
+        || !this._gl.getExtension("OES_texture_float_linear")) {
+        throw new Error("Float texture extensions not supported");
       }
     } else if (!(data instanceof Uint16Array)) {
-      throw new Error("Invalid data array type");
+      throw new Error("Invalid data array type: must be Uint16Array");
     }
 
     if (data.length !== width * height) {      
@@ -348,7 +324,12 @@ export class AnimationProgram {
     gl.texImage2D(type, 0, texelFormal, width, height, 0, 
       texelFormal, texelType, data);
     
-    if (isPowerOf2(width) && isPowerOf2(height)) {
+    if (forceNearestFilter) {
+      gl.texParameteri(type, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(type, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(type, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(type, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    } else if (isPowerOf2(width) && isPowerOf2(height)) {
       gl.generateMipmap(type);
     } else {
       gl.texParameteri(type, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -419,14 +400,15 @@ export class AnimationProgram {
     this._uniforms.set(name, uniform);
   }
   
-  createAndSet2dTexture(name: string, data: Uint8Array | Uint16Array, type: SamplerType, 
-    texelFormal: TexelFormat, texelType: TexelType,
-    width: number, height: number, unit = 0) {     
+  createAndSet2dTexture(name: string, data: Uint8Array | Uint16Array | Float32Array, 
+    type: SamplerType, texelFormal: TexelFormat, texelType: TexelType,
+    width: number, height: number, forceNearestFilter = false, unit = 0) {     
     if (!name) {
       return;
     }
 
-    const texture = this.createTexture(data, type, texelFormal, texelType, width, height);
+    const texture = this.createTexture(data, type, texelFormal, texelType, 
+      width, height, forceNearestFilter);
     this.setTexture(name, texture, type, unit);
   }
 
@@ -474,55 +456,4 @@ export class AnimationProgram {
     this._attributes.forEach(x => x.set());
     this._uniforms.forEach(x => x.set());
   }
-}
-
-export class InstancedAnimationProgram extends AnimationProgram {
-  private readonly _extInstanced: ANGLE_instanced_arrays;
-
-  private _instanceCount = 0;
-  get instanceCount(): number {
-    return this._instanceCount;
-  }
-  set instanceCount(count: number) {
-    this._instanceCount = Math.max(0, count);
-  }
-    
-  constructor (gl: WebGLRenderingContext, 
-    vertexShaderSource: string, fragmentShaderSource: string) {
-    super(gl, vertexShaderSource, fragmentShaderSource);
-
-    this._extInstanced = gl.getExtension("ANGLE_instanced_arrays"); 
-    if (!this._extInstanced) {
-      this.destroy();
-      throw new Error("'ANGLE_instanced_arrays' extension not supported");
-    }
-  } 
-
-  render(clear = true) {
-    this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
-    
-    if (clear) {
-      this.resetRender();
-    }
-    this.set();
-    
-    const index = this._attributes.get("index");
-    if (index) {
-      this._extInstanced.drawElementsInstancedANGLE(this._gl.TRIANGLES, this._triangleCount * 3,
-        index.type, this._offset, this._instanceCount);
-    } else {
-      this._extInstanced.drawArraysInstancedANGLE(this._gl.TRIANGLES, this._offset,
-        this._triangleCount * 3, this._instanceCount);
-    }
-  }
-  
-  setInstancedBufferAttribute(name: string, data: TypedArray, options?: BufferInfoOptions) {
-    if (!data?.length) {
-      return;
-    }
-
-    const buffer = new BufferInfo(this._gl, this._program, name,
-      data, options, this._extInstanced);
-    this.setAttribute(buffer);
-  }  
 }

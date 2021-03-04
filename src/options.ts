@@ -8,8 +8,8 @@ class DotAnimationOptions implements IAnimationOptions {
   depth = 1000;
   fov = 120;
   size: [min: number, max: number] = [16, 64];
-  velocityX: [min: number, max: number] = [-0.2, 0.2];
-  velocityY: [min: number, max: number] = [-0.2, 0.2];
+  velocityX: [min: number, max: number] = [-0.1, 0.1];
+  velocityY: [min: number, max: number] = [-0.1, 0.1];
   velocityZ: [min: number, max: number] = [-0.1, 0.1];
   angularVelocity: [min: number, max: number] = [-0.001, 0.001];
   

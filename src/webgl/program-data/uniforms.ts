@@ -2,7 +2,9 @@ import { numberTypes, SamplerType, samplerTypes, textureTypes,
   UniformFloatType, uniformFloatTypes,
   UniformIntType, uniformIntTypes } from "./common";
 
-export abstract class Uniform {
+export abstract class Uniform {  
+  protected readonly _gl: WebGLRenderingContext; 
+
   protected _name: string;
   get name(): string {
     return this._name;
@@ -12,8 +14,10 @@ export abstract class Uniform {
     return this._type;
   }
 
-  protected readonly _location: WebGLUniformLocation;  
-  protected readonly _gl: WebGLRenderingContext; 
+  protected _location: WebGLUniformLocation;  
+  get location(): WebGLUniformLocation {
+    return this._location;
+  }
 
   protected constructor(gl: WebGLRenderingContext, 
     program: WebGLProgram, name: string) {    
@@ -31,8 +35,8 @@ export abstract class Uniform {
 }
 
 export class UniformIntInfo extends Uniform { 
-  protected readonly _type: 5124 | 35670;
-  protected readonly _value: number;
+  protected _type: 5124 | 35670;
+  protected _value: number;
 
   constructor (gl: WebGLRenderingContext, 
     program: WebGLProgram,

@@ -2,7 +2,7 @@ import { TypedArray, NumberType, numberTypes, numberSizes,
   bufferTypes, BufferUsageType, bufferUsageTypes, getNumberTypeByArray } from "./common";
 
 export interface BufferInfoOptions {  
-  usage?: BufferUsageType;
+  usage?: "static" | "dynamic";
   vectorSize?: 1 | 2 | 3 | 4;
   vectorNumber?: 1 | 2 | 3 | 4;
   stride?: number;
@@ -12,6 +12,8 @@ export interface BufferInfoOptions {
 }
 
 export abstract class Attribute {
+  protected readonly _gl: WebGLRenderingContext;
+
   protected _name: string;
   get name(): string {
     return this._name;
@@ -21,8 +23,10 @@ export abstract class Attribute {
     return this._type;
   }
 
-  protected readonly _location: number;  
-  protected readonly _gl: WebGLRenderingContext;
+  protected _location: number;  
+  get location(): number {
+    return this._location;
+  }
 
   protected constructor(gl: WebGLRenderingContext, 
     program: WebGLProgram, name: string) {
@@ -130,7 +134,7 @@ export class ConstantInfo extends Attribute {
 
 export class BufferInfo<T extends TypedArray> extends Attribute {
   private static readonly defaultOptions: BufferInfoOptions = { 
-    usage: bufferUsageTypes.STATIC_DRAW,
+    usage: "static",
     vectorSize: 1,
     vectorNumber: 1,
     stride: 0,
@@ -182,7 +186,9 @@ export class BufferInfo<T extends TypedArray> extends Attribute {
 
     this._buffer = gl.createBuffer();
     gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);  
-    gl.bufferData(bufferTypes.ARRAY_BUFFER, data, usage);    
+    gl.bufferData(bufferTypes.ARRAY_BUFFER, data, usage === "static" 
+      ? bufferUsageTypes.STATIC_DRAW 
+      : bufferUsageTypes.DYNAMIC_DRAW);    
   }
   
   updateData(data: T, offset: number): void { 

@@ -1073,44 +1073,39 @@
         }
     }
 
-    class DotAnimationOptions {
-        constructor(item = null) {
-            this.expectedFps = 60;
-            this.fixedNumber = null;
-            this.density = 0.0002;
-            this.depth = 1000;
-            this.fov = 120;
-            this.size = [16, 64];
-            this.velocityX = [-0.2, 0.2];
-            this.velocityY = [-0.2, 0.2];
-            this.velocityZ = [-0.1, 0.1];
-            this.angularVelocity = [-0.001, 0.001];
-            this.blur = 1;
-            this.colors = [[255, 255, 255], [255, 244, 193], [250, 239, 219]];
-            this.fixedOpacity = null;
-            this.opacityMin = 0;
-            this.opacityStep = 0;
-            this.drawLines = true;
-            this.lineColor = [113, 120, 146];
-            this.lineLength = 150;
-            this.lineWidth = 2;
-            this.onClick = null;
-            this.onHover = null;
-            this.onClickCreateN = 10;
-            this.onClickMoveR = 200;
-            this.onHoverMoveR = 50;
-            this.onHoverLineLength = 150;
-            this.textureUrl = "animals-white.png";
-            this.textureSize = 8;
-            this.textureMap = [
-                0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0,
-                0, 1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1,
-                0, 2, 1, 2, 2, 2, 3, 2, 4, 2, 5, 2, 6, 2, 7, 2,
-                0, 3, 1, 3, 2, 3, 3, 3, 4, 3, 5, 3,
-            ];
-            if (item) {
-                Object.assign(this, item);
-            }
+    class Square {
+        constructor(size = 1) {
+            this._positions = new Float32Array([
+                -size, -size, 0,
+                size, -size, 0,
+                -size, size, 0,
+                size, size, 0,
+            ]);
+            this._normals = new Float32Array([
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+            ]);
+            this._uvs = new Float32Array([
+                0, 1,
+                1, 1,
+                0, 0,
+                1, 0,
+            ]);
+            this._indices = new Uint32Array([0, 1, 2, 2, 1, 3]);
+        }
+        get positions() {
+            return this._positions;
+        }
+        get normals() {
+            return this._normals;
+        }
+        get uvs() {
+            return this._uvs;
+        }
+        get indices() {
+            return this._indices;
         }
     }
 
@@ -1136,6 +1131,7 @@
         UNSIGNED_SHORT_4_4_4_4: 0x8033,
         UNSIGNED_SHORT_5_5_5_1: 0x8034,
         UNSIGNED_SHORT_5_6_5: 0x8363,
+        FLOAT: 0x1406,
     };
     const numberTypes = {
         BYTE: 0x1400,
@@ -1223,42 +1219,6 @@
         throw new Error("Unsupported array type");
     }
 
-    class Square {
-        constructor(size = 1) {
-            this._positions = new Float32Array([
-                -size, -size, 0,
-                size, -size, 0,
-                -size, size, 0,
-                size, size, 0,
-            ]);
-            this._normals = new Float32Array([
-                0, 0, 1,
-                0, 0, 1,
-                0, 0, 1,
-                0, 0, 1,
-            ]);
-            this._uvs = new Float32Array([
-                0, 1,
-                1, 1,
-                0, 0,
-                1, 0,
-            ]);
-            this._indices = new Uint32Array([0, 1, 2, 2, 1, 3]);
-        }
-        get positions() {
-            return this._positions;
-        }
-        get normals() {
-            return this._normals;
-        }
-        get uvs() {
-            return this._uvs;
-        }
-        get indices() {
-            return this._indices;
-        }
-    }
-
     class Attribute {
         constructor(gl, program, name) {
             this._gl = gl;
@@ -1270,6 +1230,9 @@
         }
         get type() {
             return this._type;
+        }
+        get location() {
+            return this._location;
         }
     }
     class ConstantInfo extends Attribute {
@@ -1342,7 +1305,9 @@
             this._instancedExt = instancedExt;
             this._buffer = gl.createBuffer();
             gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);
-            gl.bufferData(bufferTypes.ARRAY_BUFFER, data, usage);
+            gl.bufferData(bufferTypes.ARRAY_BUFFER, data, usage === "static"
+                ? bufferUsageTypes.STATIC_DRAW
+                : bufferUsageTypes.DYNAMIC_DRAW);
         }
         updateData(data, offset) {
             this._gl.bindBuffer(bufferTypes.ARRAY_BUFFER, this._buffer);
@@ -1363,7 +1328,7 @@
         }
     }
     BufferInfo.defaultOptions = {
-        usage: bufferUsageTypes.STATIC_DRAW,
+        usage: "static",
         vectorSize: 1,
         vectorNumber: 1,
         stride: 0,
@@ -1411,6 +1376,9 @@
         }
         get type() {
             return this._type;
+        }
+        get location() {
+            return this._location;
         }
         setSampleArray(target, unit, textures) {
         }
@@ -1623,14 +1591,14 @@
         }
     }
 
-    class AnimationProgram {
+    class WGLProgramBase {
         constructor(gl, vertexShaderSource, fragmentShaderSource) {
             this._attributes = new Map();
             this._uniforms = new Map();
             this._offset = 0;
             this._triangleCount = 0;
-            const vertexShader = AnimationProgram.loadShader(gl, shaderTypes.VERTEX_SHADER, vertexShaderSource);
-            const fragmentShader = AnimationProgram.loadShader(gl, shaderTypes.FRAGMENT_SHADER, fragmentShaderSource);
+            const vertexShader = WGLProgramBase.loadShader(gl, shaderTypes.VERTEX_SHADER, vertexShaderSource);
+            const fragmentShader = WGLProgramBase.loadShader(gl, shaderTypes.FRAGMENT_SHADER, fragmentShaderSource);
             this._extIndexed = gl.getExtension("OES_element_index_uint");
             const program = gl.createProgram();
             gl.attachShader(program, vertexShader);
@@ -1651,12 +1619,6 @@
         set offset(count) {
             this._offset = Math.max(0, count);
         }
-        get triangleCount() {
-            return this._triangleCount;
-        }
-        set triangleCount(count) {
-            this._triangleCount = Math.max(0, count);
-        }
         static loadShader(gl, shaderType, shaderSource) {
             const shader = gl.createShader(shaderType);
             gl.shaderSource(shader, shaderSource);
@@ -1668,30 +1630,6 @@
                 throw new Error("Error while compiling shader: " + log);
             }
             return shader;
-        }
-        render(clear = true) {
-            this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
-            if (clear) {
-                this.resetRender();
-            }
-            this.set();
-            const index = this._attributes.get("index");
-            if (index) {
-                this._gl.drawElements(this._gl.TRIANGLES, this._triangleCount * 3, index.type, this._offset);
-            }
-            else {
-                this._gl.drawArrays(this._gl.TRIANGLES, this._offset, this._triangleCount * 3);
-            }
-        }
-        resetRender() {
-            const gl = this._gl;
-            gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-            gl.cullFace(gl.BACK);
-            gl.enable(gl.CULL_FACE);
-            gl.enable(gl.DEPTH_TEST);
-            gl.clearColor(0, 0, 0, 0);
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         }
         destroy() {
             this.clearUniforms();
@@ -1864,14 +1802,23 @@
             const uniform = new UniformFloatArrayInfo(this._gl, this._program, name, type, data.toFloatArray());
             this.setUniform(uniform);
         }
-        createTexture(data, type, texelFormal, texelType, width, height) {
-            if (data instanceof Uint8Array) {
-                if (texelType !== texelTypes.UNSIGNED_BYTE) {
-                    throw new Error("Invalid texel type");
+        createTexture(data, type, texelFormal, texelType, width, height, forceNearestFilter = false) {
+            if (texelType === texelTypes.UNSIGNED_BYTE) {
+                if (!(data instanceof Uint8Array)) {
+                    throw new Error("Invalid data array type: must be Uint8Array");
+                }
+            }
+            else if (texelType === texelTypes.FLOAT) {
+                if (!(data instanceof Float32Array)) {
+                    throw new Error("Invalid data array type: must be Float32Array");
+                }
+                if (!this._gl.getExtension("OES_texture_float")
+                    || !this._gl.getExtension("OES_texture_float_linear")) {
+                    throw new Error("Float texture extensions not supported");
                 }
             }
             else if (!(data instanceof Uint16Array)) {
-                throw new Error("Invalid data array type");
+                throw new Error("Invalid data array type: must be Uint16Array");
             }
             if (data.length !== width * height) {
                 throw new Error("Invalid data array length");
@@ -1880,7 +1827,13 @@
             const texture = gl.createTexture();
             gl.bindTexture(type, texture);
             gl.texImage2D(type, 0, texelFormal, width, height, 0, texelFormal, texelType, data);
-            if (isPowerOf2(width) && isPowerOf2(height)) {
+            if (forceNearestFilter) {
+                gl.texParameteri(type, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(type, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(type, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                gl.texParameteri(type, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            }
+            else if (isPowerOf2(width) && isPowerOf2(height)) {
                 gl.generateMipmap(type);
             }
             else {
@@ -1935,11 +1888,11 @@
             const uniform = new TextureArrayInfo(this._gl, this._program, name, unit, textures, type);
             this._uniforms.set(name, uniform);
         }
-        createAndSet2dTexture(name, data, type, texelFormal, texelType, width, height, unit = 0) {
+        createAndSet2dTexture(name, data, type, texelFormal, texelType, width, height, forceNearestFilter = false, unit = 0) {
             if (!name) {
                 return;
             }
-            const texture = this.createTexture(data, type, texelFormal, texelType, width, height);
+            const texture = this.createTexture(data, type, texelFormal, texelType, width, height, forceNearestFilter);
             this.setTexture(name, texture, type, unit);
         }
         loadAndSet2dTexture(name, url, unit = 0, fallback = new Uint8Array([0, 0, 0, 255])) {
@@ -1979,7 +1932,44 @@
             this._uniforms.forEach(x => x.set());
         }
     }
-    class InstancedAnimationProgram extends AnimationProgram {
+
+    class WGLStandardProgram extends WGLProgramBase {
+        get triangleCount() {
+            return this._triangleCount;
+        }
+        set triangleCount(count) {
+            this._triangleCount = Math.max(0, count);
+        }
+        constructor(gl, vertexShaderSource, fragmentShaderSource) {
+            super(gl, vertexShaderSource, fragmentShaderSource);
+        }
+        render(clear = true) {
+            this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
+            if (clear) {
+                this.resetRender();
+            }
+            this.set();
+            const index = this._attributes.get("index");
+            if (index) {
+                this._gl.drawElements(this._gl.TRIANGLES, this._triangleCount * 3, index.type, this._offset);
+            }
+            else {
+                this._gl.drawArrays(this._gl.TRIANGLES, this._offset, this._triangleCount * 3);
+            }
+        }
+        resetRender() {
+            const gl = this._gl;
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            gl.cullFace(gl.BACK);
+            gl.enable(gl.CULL_FACE);
+            gl.enable(gl.DEPTH_TEST);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        }
+    }
+
+    class WGLInstancedProgram extends WGLStandardProgram {
         constructor(gl, vertexShaderSource, fragmentShaderSource) {
             super(gl, vertexShaderSource, fragmentShaderSource);
             this._instanceCount = 0;
@@ -2015,6 +2005,47 @@
             }
             const buffer = new BufferInfo(this._gl, this._program, name, data, options, this._extInstanced);
             this.setAttribute(buffer);
+        }
+    }
+
+    class DotAnimationOptions {
+        constructor(item = null) {
+            this.expectedFps = 60;
+            this.fixedNumber = null;
+            this.density = 0.0002;
+            this.depth = 1000;
+            this.fov = 120;
+            this.size = [16, 64];
+            this.velocityX = [-0.1, 0.1];
+            this.velocityY = [-0.1, 0.1];
+            this.velocityZ = [-0.1, 0.1];
+            this.angularVelocity = [-0.001, 0.001];
+            this.blur = 1;
+            this.colors = [[255, 255, 255], [255, 244, 193], [250, 239, 219]];
+            this.fixedOpacity = null;
+            this.opacityMin = 0;
+            this.opacityStep = 0;
+            this.drawLines = true;
+            this.lineColor = [113, 120, 146];
+            this.lineLength = 150;
+            this.lineWidth = 2;
+            this.onClick = null;
+            this.onHover = null;
+            this.onClickCreateN = 10;
+            this.onClickMoveR = 200;
+            this.onHoverMoveR = 50;
+            this.onHoverLineLength = 150;
+            this.textureUrl = "animals-white.png";
+            this.textureSize = 8;
+            this.textureMap = [
+                0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0,
+                0, 1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1,
+                0, 2, 1, 2, 2, 2, 3, 2, 4, 2, 5, 2, 6, 2, 7, 2,
+                0, 3, 1, 3, 2, 3, 3, 3, 4, 3, 5, 3,
+            ];
+            if (item) {
+                Object.assign(this, item);
+            }
         }
     }
 
@@ -2325,7 +2356,6 @@
                 }
                 this._iData = data;
                 this._iDataSorted = data.slice();
-                console.log(data);
                 this._length = length;
             }
         }
@@ -2380,7 +2410,7 @@
             this.fixContext();
             this._fov = options.fov;
             this._depth = options.depth;
-            this._program = new InstancedAnimationProgram(gl, this._vertexShader, this._fragmentShader);
+            this._program = new WGLInstancedProgram(gl, this._vertexShader, this._fragmentShader);
             this._data = new DotAnimationWebGlData(options);
             if (!options.textureUrl) {
                 throw new Error("Texture URL not defined");
@@ -2408,9 +2438,9 @@
                 this._program.setFloatMatUniform("uModel", modelMatrix);
                 const projectionMatrix = Mat4.buildPerspective(near, near + this._depth, -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
                 this._program.setFloatMatUniform("uProjection", projectionMatrix);
-                this._program.setInstancedBufferAttribute("aColorInst", this._data.iColor, { vectorSize: 4, vectorNumber: 1, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW });
-                this._program.setInstancedBufferAttribute("aMatInst", this._data.iMatrix, { vectorSize: 4, vectorNumber: 4, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW });
-                this._program.setInstancedBufferAttribute("aUvInst", this._data.iUv, { vectorSize: 2, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW });
+                this._program.setInstancedBufferAttribute("aColorInst", this._data.iColor, { vectorSize: 4, vectorNumber: 1, divisor: 1, usage: "static" });
+                this._program.setInstancedBufferAttribute("aMatInst", this._data.iMatrix, { vectorSize: 4, vectorNumber: 4, divisor: 1, usage: "dynamic" });
+                this._program.setInstancedBufferAttribute("aUvInst", this._data.iUv, { vectorSize: 2, divisor: 1, usage: "dynamic" });
             }
             else {
                 this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);

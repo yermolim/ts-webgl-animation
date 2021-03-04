@@ -1,5 +1,3 @@
-import { Attribute } from "./attributes";
-
 export const shaderTypes = {
   FRAGMENT_SHADER: 0x8b30,
   VERTEX_SHADER: 0x8b31,
@@ -22,20 +20,27 @@ export const textureTypes = {
   TEXTURE_CUBE_MAP: 0x8513,
 } as const;
 export type TextureType = typeof textureTypes[keyof typeof textureTypes];
-export const texelFormats = {
+
+export const readTexelFormats = {
   RGB: 0x1907,
   RGBA: 0x1908,
   ALPHA: 0x1906,
+} as const;
+export type ReadTexelFormat = typeof readTexelFormats[keyof typeof readTexelFormats];
+export const writeOnlytexelFormats = {
   LUMINANCE: 0x1909,
   LUMINANCE_ALPHA: 0x190A,
   DEPTH_COMPONENT: 0x1902,
 } as const;
-export type TexelFormat = typeof texelFormats[keyof typeof texelFormats];
+export type WriteOnlyTexelFormat = typeof writeOnlytexelFormats[keyof typeof writeOnlytexelFormats];
+export type TexelFormat = ReadTexelFormat | WriteOnlyTexelFormat;
+
 export const texelTypes = {
   UNSIGNED_BYTE: 0x1401,
   UNSIGNED_SHORT_4_4_4_4: 0x8033,
   UNSIGNED_SHORT_5_5_5_1: 0x8034,
   UNSIGNED_SHORT_5_6_5: 0x8363,
+  FLOAT: 0x1406,
 } as const;
 export type TexelType = typeof texelTypes[keyof typeof texelTypes];
 
@@ -50,6 +55,7 @@ export const numberTypes = {
   BOOL: 0x8B56,	
 } as const;
 export type NumberType = typeof numberTypes[keyof typeof numberTypes];
+
 export const numberSizes = {
   0x1400: 1,
   0x1401: 1,
@@ -157,9 +163,6 @@ export const bufferUsageTypes = {
   DYNAMIC_DRAW: 0x88E8,
 } as const;
 export type BufferUsageType = (typeof bufferUsageTypes[keyof typeof bufferUsageTypes]);
-
-
-export type GlType = NumberType | UniformType | OtherDataType;
 
 export type TypedArray =
   | Int8Array

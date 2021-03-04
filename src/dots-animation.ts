@@ -1,17 +1,27 @@
 import { getRandomUuid } from "./common";
 import { IAnimation, IAnimationOptions, 
   IWebGlAnimationControlType, IWebGlAnimationControl} from "./interfaces";
+
 import { degToRad, getRandomArrayElement, getRandomFloat, Vec } from "./math/common";
 import { Mat4 } from "./math/mat4";
 import { Vec2 } from "./math/vec2";
 import { Vec3 } from "./math/vec3";
 import { Vec4 } from "./math/vec4";
-import { DotAnimationOptions } from "./options";
-import { bufferUsageTypes } from "./webgl/common";
-import { Primitive } from "./webgl/primitives/common";
-import { Square } from "./webgl/primitives/square";
-import { InstancedAnimationProgram } from "./webgl/program";
 
+import { Primitive } from "./webgl/primitives/primitive";
+import { Square } from "./webgl/primitives/square";
+import { WGLInstancedProgram } from "./webgl/wgl-instanced-program";
+
+import { DotAnimationOptions } from "./options";
+
+const BILLBOARD = `
+  vec3 billboard(vec2 offset, mat4 view) {
+    vec3 up = vec3(view[0][1], view[1][1], view[2][1]);
+    vec3 right = vec3(view[0][0], view[1][0], view[2][0]);
+    vec3 pos = right * offset.x + up * offset.y; 
+    return pos;
+  }
+`;
 
 class AnimationWebGl implements IAnimation {
   private _options: IAnimationOptions;
@@ -488,7 +498,7 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
   `;
   
   private _gl: WebGLRenderingContext;
-  private _program: InstancedAnimationProgram;
+  private _program: WGLInstancedProgram;
 
   private _fov: number;
   private _depth: number;
@@ -504,7 +514,7 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
     this._fov = options.fov;
     this._depth = options.depth;
 
-    this._program = new InstancedAnimationProgram(gl, this._vertexShader, this._fragmentShader);
+    this._program = new WGLInstancedProgram(gl, this._vertexShader, this._fragmentShader);
     this._data = new DotAnimationWebGlData(options);
 
     // set uniforms
@@ -552,11 +562,11 @@ class DotWebGlAnimationControl implements IWebGlAnimationControl {
 
       //#region buffers
       this._program.setInstancedBufferAttribute("aColorInst", this._data.iColor, 
-        {vectorSize: 4, vectorNumber: 1, divisor: 1, usage: bufferUsageTypes.STATIC_DRAW}); 
+        {vectorSize: 4, vectorNumber: 1, divisor: 1, usage: "static"}); 
       this._program.setInstancedBufferAttribute("aMatInst", this._data.iMatrix, 
-        {vectorSize: 4, vectorNumber: 4, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW});
+        {vectorSize: 4, vectorNumber: 4, divisor: 1, usage: "dynamic"});
       this._program.setInstancedBufferAttribute("aUvInst", this._data.iUv,
-        {vectorSize: 2, divisor: 1, usage: bufferUsageTypes.DYNAMIC_DRAW});
+        {vectorSize: 2, divisor: 1, usage: "dynamic"});
       //#endregion   
         
       //#region debug
