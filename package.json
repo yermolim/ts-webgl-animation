@@ -1,5 +1,5 @@
 {
-  "name": "dots-animation-webgl",
+  "name": "ts-webgl-animation",
   "version": "0.0.1",
   "description": "simple module for filling your html container with fancy responsive dots animation",
   "main": "dist/index.umd.min.js",
@@ -9,7 +9,7 @@
     "test": "karma start",
     "buildts": "tsc",
     "buildru": "rollup -c",
-    "builddts": "tsc && rollup -c && dts-bundle-generator -o dist/index.d.ts src/dots-animation.ts",
+    "builddts": "tsc && rollup -c && dts-bundle-generator -o dist/index.d.ts src/main.ts",
     "build": "npm run builddts && copyfiles -f ./dist/index.umd.js ./demo",
     "start": "npm run build && lite-server -c ls-config.json",
     "mpublish": "npm version minor && npm publish",
@@ -17,7 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yermolim/dots-animation-webgl.git"
+    "url": "git+https://github.com/yermolim/ts-webgl-animation.git"
   },
   "keywords": [
     "web",
@@ -25,17 +25,18 @@
     "responsive",
     "typescript",
     "animation",
-    "webgl",
     "background",
-    "dots",
+    "sprite",
+    "webgl",
+    "gpgpu",
     "customization"
   ],
   "author": "Volodymyr Yermolenko <yermolim@gmail.com> (https://github.com/yermolim)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/yermolim/dots-animation-webgl/issues"
+    "url": "https://github.com/yermolim/ts-webgl-animation/issues"
   },
-  "homepage": "https://github.com/yermolim/dots-animation-webgl#readme",
+  "homepage": "https://github.com/yermolim/ts-webgl-animation#readme",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^17.0.0",
     "@rollup/plugin-multi-entry": "^4.0.0",

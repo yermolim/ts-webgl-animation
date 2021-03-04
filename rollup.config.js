@@ -3,12 +3,12 @@ import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 
 export default [{
-  input: "tsc/src/dots-animation.js",
+  input: "tsc/src/main.js",
   output: [
     { file: "dist/index.esm.js", format: "es" },
     { file: "dist/index.esm.min.js", format: "es", plugins: [terser()] },
-    { file: "dist/index.umd.js", format: "umd", name: "dotsAnim" },
-    { file: "dist/index.umd.min.js", format: "umd", name: "dotsAnim", plugins: [terser()] },
+    { file: "dist/index.umd.js", format: "umd", name: "wglAnim" },
+    { file: "dist/index.umd.min.js", format: "umd", name: "wglAnim", plugins: [terser()] },
   ],
   plugins: [
     commonjs(),

@@ -1,39 +1,8 @@
 import { Vec2 } from "./math/vec2";
 
-interface IAnimationOptions {
+interface AnimationOptions {
   expectedFps: number;
-
-  fixedNumber: number;
-  density: number;
-  depth: number;
-  fov: number;
-  size: [min: number, max: number];
-  velocityX: [min: number, max: number];
-  velocityY: [min: number, max: number];
-  velocityZ: [min: number, max: number];
-  angularVelocity: [min: number, max: number];
-  
   blur: number;
-  colors: [r: number, g: number, b: number][];  
-  fixedOpacity: number;
-  opacityMin: number;
-  opacityStep: number;
-
-  drawLines: boolean;
-  lineColor: [r: number, g: number, b: number];
-  lineLength: number;
-  lineWidth: number;
-
-  onClick: "create" | "move";
-  onHover: "move" | "draw-lines";
-  onClickCreateN: number;
-  onClickMoveR: number;
-  onHoverMoveR: number;
-  onHoverLineLength: number;
-  
-  textureUrl: string;
-  textureSize: number;
-  textureMap: number[];
 }
 
 interface IAnimation {
@@ -41,8 +10,17 @@ interface IAnimation {
   stop(): void;
   pause(): void;
 }
+
+interface IAnimationControl {
+  setPauseState(pauseState: boolean): void;
+  draw(mousePosition?: Position2, isMouseClicked?: boolean): void;
+}
+
+type IAnimationControlType = 
+    new(canvas: HTMLCanvasElement, options: AnimationOptions) => IAnimationControl;
+
     
-interface IWebGlAnimationControl {  
+interface IWGLAnimationControl {  
   prepareNextFrame(resolution: Vec2, pointerPosition: Vec2, pointerDown: boolean, elapsedTime: number): void;
   renderFrame(): void;
 
@@ -50,21 +28,13 @@ interface IWebGlAnimationControl {
   destroy(): void;
 }
 
-type IWebGlAnimationControlType = 
-    new(gl: WebGLRenderingContext, options: IAnimationOptions) => IWebGlAnimationControl;
+type IWGLAnimationControlType = 
+    new(gl: WebGLRenderingContext, options: AnimationOptions) => IWGLAnimationControl;
 
-interface IAnimationControl {
-  setPauseState(pauseState: boolean): void;
-  draw(mousePosition?: IPositionObject, isMouseClicked?: boolean): void;
-}
-
-type IAnimationControlType = 
-    new(canvas: HTMLCanvasElement, options: IAnimationOptions) => IAnimationControl;
-
-interface IPositionObject {
+interface Position2 {
   x: number;
   y: number;
 }
 
-export { IAnimationOptions, IAnimation, IAnimationControl, IAnimationControlType, IPositionObject,
-  IWebGlAnimationControl, IWebGlAnimationControlType };
+export { AnimationOptions, IAnimation, IAnimationControl, IAnimationControlType, Position2 as IPositionObject,
+  IWGLAnimationControl, IWGLAnimationControlType };

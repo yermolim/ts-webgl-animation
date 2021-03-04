@@ -1,5 +1,42 @@
-function getRandomUuid() {
-    return crypto.getRandomValues(new Uint32Array(4)).join("-");
+class SpriteAnimationOptions {
+    constructor(item = null) {
+        this.expectedFps = 60;
+        this.fixedNumber = null;
+        this.density = 0.0002;
+        this.depth = 1000;
+        this.fov = 120;
+        this.size = [16, 64];
+        this.velocityX = [-0.1, 0.1];
+        this.velocityY = [-0.1, 0.1];
+        this.velocityZ = [-0.1, 0.1];
+        this.angularVelocity = [-0.001, 0.001];
+        this.blur = 1;
+        this.colors = [[255, 255, 255], [255, 244, 193], [250, 239, 219]];
+        this.fixedOpacity = null;
+        this.opacityMin = 0;
+        this.opacityStep = 0;
+        this.drawLines = true;
+        this.lineColor = [113, 120, 146];
+        this.lineLength = 150;
+        this.lineWidth = 2;
+        this.onClick = null;
+        this.onHover = null;
+        this.onClickCreateN = 10;
+        this.onClickMoveR = 200;
+        this.onHoverMoveR = 50;
+        this.onHoverLineLength = 150;
+        this.textureUrl = "animals-white.png";
+        this.textureSize = 8;
+        this.textureMap = [
+            0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0,
+            0, 1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1,
+            0, 2, 1, 2, 2, 2, 3, 2, 4, 2, 5, 2, 6, 2, 7, 2,
+            0, 3, 1, 3, 2, 3, 3, 3, 4, 3, 5, 3,
+        ];
+        if (item) {
+            Object.assign(this, item);
+        }
+    }
 }
 
 function getRandomFloat(min, max) {
@@ -1067,42 +1104,6 @@ class Vec4 {
     }
 }
 
-class Square {
-    constructor(size = 1) {
-        this._positions = new Float32Array([
-            -size, -size, 0,
-            size, -size, 0,
-            -size, size, 0,
-            size, size, 0,
-        ]);
-        this._normals = new Float32Array([
-            0, 0, 1,
-            0, 0, 1,
-            0, 0, 1,
-            0, 0, 1,
-        ]);
-        this._uvs = new Float32Array([
-            0, 1,
-            1, 1,
-            0, 0,
-            1, 0,
-        ]);
-        this._indices = new Uint32Array([0, 1, 2, 2, 1, 3]);
-    }
-    get positions() {
-        return this._positions;
-    }
-    get normals() {
-        return this._normals;
-    }
-    get uvs() {
-        return this._uvs;
-    }
-    get indices() {
-        return this._indices;
-    }
-}
-
 const shaderTypes = {
     FRAGMENT_SHADER: 0x8b30,
     VERTEX_SHADER: 0x8b31,
@@ -2002,156 +2003,43 @@ class WGLInstancedProgram extends WGLStandardProgram {
     }
 }
 
-class DotAnimationOptions {
-    constructor(item = null) {
-        this.expectedFps = 60;
-        this.fixedNumber = null;
-        this.density = 0.0002;
-        this.depth = 1000;
-        this.fov = 120;
-        this.size = [16, 64];
-        this.velocityX = [-0.1, 0.1];
-        this.velocityY = [-0.1, 0.1];
-        this.velocityZ = [-0.1, 0.1];
-        this.angularVelocity = [-0.001, 0.001];
-        this.blur = 1;
-        this.colors = [[255, 255, 255], [255, 244, 193], [250, 239, 219]];
-        this.fixedOpacity = null;
-        this.opacityMin = 0;
-        this.opacityStep = 0;
-        this.drawLines = true;
-        this.lineColor = [113, 120, 146];
-        this.lineLength = 150;
-        this.lineWidth = 2;
-        this.onClick = null;
-        this.onHover = null;
-        this.onClickCreateN = 10;
-        this.onClickMoveR = 200;
-        this.onHoverMoveR = 50;
-        this.onHoverLineLength = 150;
-        this.textureUrl = "animals-white.png";
-        this.textureSize = 8;
-        this.textureMap = [
-            0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0,
-            0, 1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1,
-            0, 2, 1, 2, 2, 2, 3, 2, 4, 2, 5, 2, 6, 2, 7, 2,
-            0, 3, 1, 3, 2, 3, 3, 3, 4, 3, 5, 3,
-        ];
-        if (item) {
-            Object.assign(this, item);
-        }
+class Square {
+    constructor(size = 1) {
+        this._positions = new Float32Array([
+            -size, -size, 0,
+            size, -size, 0,
+            -size, size, 0,
+            size, size, 0,
+        ]);
+        this._normals = new Float32Array([
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+            0, 0, 1,
+        ]);
+        this._uvs = new Float32Array([
+            0, 1,
+            1, 1,
+            0, 0,
+            1, 0,
+        ]);
+        this._indices = new Uint32Array([0, 1, 2, 2, 1, 3]);
+    }
+    get positions() {
+        return this._positions;
+    }
+    get normals() {
+        return this._normals;
+    }
+    get uvs() {
+        return this._uvs;
+    }
+    get indices() {
+        return this._indices;
     }
 }
 
-class AnimationWebGl {
-    constructor(container, options, controlType) {
-        this._resolution = new Vec2();
-        this._pointerPosition = new Vec2();
-        this._animationStartTimeStamp = 0;
-        this._lastFrameTimeStamp = 0;
-        this._lastPreparationTime = 0;
-        this._lastRenderTime = 0;
-        this.onResize = () => {
-            const dpr = window.devicePixelRatio;
-            const rect = this._container.getBoundingClientRect();
-            const x = Math.floor(rect.width * dpr);
-            const y = Math.floor(rect.height * dpr);
-            this._resolution.set(x, y);
-        };
-        this.onPointerMove = (e) => {
-            const dpr = window.devicePixelRatio;
-            const parentRect = this._container.getBoundingClientRect();
-            const xRelToDoc = parentRect.left +
-                document.documentElement.scrollLeft;
-            const yRelToDoc = parentRect.top +
-                document.documentElement.scrollTop;
-            const x = (e.clientX - xRelToDoc + window.pageXOffset) * dpr;
-            const y = (e.clientY - yRelToDoc + window.pageYOffset) * dpr;
-            this._pointerPosition.set(x, y);
-        };
-        this.onPointerDown = () => {
-            this._pointerIsDown = true;
-        };
-        this.onPointerUp = () => {
-            this._pointerIsDown = false;
-        };
-        this._options = options;
-        this._container = container;
-        this._controlType = controlType;
-        this.initCanvas();
-        this.initControl();
-        this.addEventListeners();
-    }
-    destroy() {
-        this.stop();
-        this.removeEventListeners();
-        this._control.destroy();
-        this._canvas.remove();
-    }
-    start() {
-        if (this._animationStartTimeStamp) {
-            const timeSinceLastFrame = performance.now() - this._lastFrameTimeStamp;
-            this._animationStartTimeStamp += timeSinceLastFrame;
-        }
-        this._animationTimerId = setInterval(() => {
-            const framePreparationStart = performance.now();
-            const elapsedTime = framePreparationStart - this._animationStartTimeStamp;
-            this._control.prepareNextFrame(this._resolution, this._pointerPosition, this._pointerIsDown, elapsedTime);
-            const framePreparationEnd = performance.now();
-            this._lastPreparationTime = framePreparationEnd - framePreparationStart;
-            requestAnimationFrame(() => {
-                const frameRenderStart = performance.now();
-                this._control.renderFrame();
-                const frameRenderEnd = performance.now();
-                this._lastFrameTimeStamp = frameRenderEnd;
-                this._lastRenderTime = frameRenderEnd - frameRenderStart;
-            });
-        }, 1000 / this._options.expectedFps);
-    }
-    pause() {
-        if (this._animationTimerId) {
-            clearInterval(this._animationTimerId);
-            this._animationTimerId = null;
-        }
-    }
-    stop() {
-        this.pause();
-        this._animationStartTimeStamp = 0;
-        window.setTimeout(() => this._control.clear(), 20);
-    }
-    initCanvas() {
-        const canvas = document.createElement("canvas");
-        canvas.id = getRandomUuid();
-        canvas.style.display = "block";
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
-        canvas.style.filter = `blur(${this._options.blur}px)`;
-        this._container.append(canvas);
-        this._canvas = canvas;
-        this.onResize();
-    }
-    initControl() {
-        this._control = new this._controlType(this._canvas.getContext("webgl"), this._options);
-    }
-    addEventListeners() {
-        this._resizeObserver = new ResizeObserver(this.onResize);
-        this._resizeObserver.observe(this._container);
-        this._container.addEventListener("pointermove", this.onPointerMove);
-        window.addEventListener("pointerdown", this.onPointerDown);
-        window.addEventListener("pointerup", this.onPointerUp);
-        window.addEventListener("blur", this.onPointerUp);
-    }
-    removeEventListeners() {
-        this._resizeObserver.unobserve(this._container);
-        this._resizeObserver.disconnect();
-        this._resizeObserver = null;
-        this._container.removeEventListener("pointermove", this.onPointerMove);
-        window.removeEventListener("pointerdown", this.onPointerDown);
-        window.removeEventListener("pointerup", this.onPointerUp);
-        window.removeEventListener("blur", this.onPointerUp);
-    }
-}
-class DotAnimationWebGlData {
+class SpriteAnimationData {
     constructor(options) {
         this._dimensions = new Vec4();
         this._sceneDimensions = new Vec3();
@@ -2354,63 +2242,64 @@ class DotAnimationWebGlData {
         }
     }
 }
-class DotWebGlAnimationControl {
+
+class SpriteAnimationControl {
     constructor(gl, options) {
         this._vertexShader = `
-    #pragma vscode_glsllint_stage : vert
+  #pragma vscode_glsllint_stage : vert
 
-    attribute vec4 aColorInst;
-    attribute vec3 aPosition;
-    attribute vec2 aUv;
-    attribute vec2 aUvInst;
-    attribute mat4 aMatInst;
+  attribute vec4 aColorInst;
+  attribute vec3 aPosition;
+  attribute vec2 aUv;
+  attribute vec2 aUvInst;
+  attribute mat4 aMatInst;
 
-    uniform int uTexSize;
-    uniform vec2 uResolution;
-    uniform mat4 uModel;
-    uniform mat4 uView;
-    uniform mat4 uProjection;
-    
-    varying vec4 vColor;
-    varying vec2 vUv;
+  uniform int uTexSize;
+  uniform vec2 uResolution;
+  uniform mat4 uModel;
+  uniform mat4 uView;
+  uniform mat4 uProjection;
+  
+  varying vec4 vColor;
+  varying vec2 vUv;
 
-    void main() {
-      vColor = aColorInst;
+  void main() {
+    vColor = aColorInst;
 
-      float texSize = float(uTexSize);
-      vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
+    float texSize = float(uTexSize);
+    vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
 
-      gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
-    }
-  `;
+    gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
+  }
+`;
         this._fragmentShader = `
-    #pragma vscode_glsllint_stage : frag  
+  #pragma vscode_glsllint_stage : frag  
 
-    precision highp float;
+  precision highp float;
 
-    uniform sampler2D uTex;
+  uniform sampler2D uTex;
 
-    varying vec4 vColor;
-    varying vec2 vUv;
+  varying vec4 vColor;
+  varying vec2 vUv;
 
-    void main() {
-      vec4 color = texture2D(uTex, vUv);
-      gl_FragColor = color * vColor;
-    }
-  `;
+  void main() {
+    vec4 color = texture2D(uTex, vUv);
+    gl_FragColor = color * vColor;
+  }
+`;
         this._lastResolution = new Vec2();
         this._dimensions = new Vec4();
         this._gl = gl;
-        this.fixContext();
-        this._fov = options.fov;
-        this._depth = options.depth;
+        const finalOptions = new SpriteAnimationOptions(options);
+        this._fov = finalOptions.fov;
+        this._depth = finalOptions.depth;
         this._program = new WGLInstancedProgram(gl, this._vertexShader, this._fragmentShader);
-        this._data = new DotAnimationWebGlData(options);
-        if (!options.textureUrl) {
+        this._data = new SpriteAnimationData(finalOptions);
+        if (!finalOptions.textureUrl) {
             throw new Error("Texture URL not defined");
         }
-        this._program.loadAndSet2dTexture("uTex", options.textureUrl);
-        this._program.setIntUniform("uTexSize", options.textureSize || 1);
+        this._program.loadAndSet2dTexture("uTex", finalOptions.textureUrl);
+        this._program.setIntUniform("uTexSize", finalOptions.textureSize || 1);
         this._program.setBufferAttribute("aPosition", this._data.position, { vectorSize: 3 });
         this._program.setBufferAttribute("aUv", this._data.uv, { vectorSize: 2 });
         this._program.setIndexAttribute(this._data.index);
@@ -2458,14 +2347,124 @@ class DotWebGlAnimationControl {
         this._gl.canvas.width = resolution.x;
         this._gl.canvas.height = resolution.y;
     }
-    fixContext() {
-        if (this._gl.isContextLost()) {
-            this._gl.getExtension("WEBGL_lose_context").restoreContext();
+}
+
+function getRandomUuid() {
+    return crypto.getRandomValues(new Uint32Array(4)).join("-");
+}
+
+class WGLAnimation {
+    constructor(container, options, controlType) {
+        this._resolution = new Vec2();
+        this._pointerPosition = new Vec2();
+        this._animationStartTimeStamp = 0;
+        this._lastFrameTimeStamp = 0;
+        this._lastPreparationTime = 0;
+        this._lastRenderTime = 0;
+        this.onResize = () => {
+            const dpr = window.devicePixelRatio;
+            const rect = this._container.getBoundingClientRect();
+            const x = Math.floor(rect.width * dpr);
+            const y = Math.floor(rect.height * dpr);
+            this._resolution.set(x, y);
+        };
+        this.onPointerMove = (e) => {
+            const dpr = window.devicePixelRatio;
+            const parentRect = this._container.getBoundingClientRect();
+            const xRelToDoc = parentRect.left +
+                document.documentElement.scrollLeft;
+            const yRelToDoc = parentRect.top +
+                document.documentElement.scrollTop;
+            const x = (e.clientX - xRelToDoc + window.pageXOffset) * dpr;
+            const y = (e.clientY - yRelToDoc + window.pageYOffset) * dpr;
+            this._pointerPosition.set(x, y);
+        };
+        this.onPointerDown = () => {
+            this._pointerIsDown = true;
+        };
+        this.onPointerUp = () => {
+            this._pointerIsDown = false;
+        };
+        this._options = options;
+        this._container = container;
+        this._controlType = controlType;
+        this.initCanvas();
+        this.initControl();
+        this.addEventListeners();
+    }
+    destroy() {
+        this.stop();
+        this.removeEventListeners();
+        this._control.destroy();
+        this._canvas.remove();
+    }
+    start() {
+        if (this._animationStartTimeStamp) {
+            const timeSinceLastFrame = performance.now() - this._lastFrameTimeStamp;
+            this._animationStartTimeStamp += timeSinceLastFrame;
+        }
+        this._animationTimerId = setInterval(() => {
+            const framePreparationStart = performance.now();
+            const elapsedTime = framePreparationStart - this._animationStartTimeStamp;
+            this._control.prepareNextFrame(this._resolution, this._pointerPosition, this._pointerIsDown, elapsedTime);
+            const framePreparationEnd = performance.now();
+            this._lastPreparationTime = framePreparationEnd - framePreparationStart;
+            requestAnimationFrame(() => {
+                const frameRenderStart = performance.now();
+                this._control.renderFrame();
+                const frameRenderEnd = performance.now();
+                this._lastFrameTimeStamp = frameRenderEnd;
+                this._lastRenderTime = frameRenderEnd - frameRenderStart;
+            });
+        }, 1000 / this._options.expectedFps);
+    }
+    pause() {
+        if (this._animationTimerId) {
+            clearInterval(this._animationTimerId);
+            this._animationTimerId = null;
         }
     }
+    stop() {
+        this.pause();
+        this._animationStartTimeStamp = 0;
+        window.setTimeout(() => this._control.clear(), 20);
+    }
+    initCanvas() {
+        const canvas = document.createElement("canvas");
+        canvas.id = getRandomUuid();
+        canvas.style.display = "block";
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+        canvas.style.filter = `blur(${this._options.blur}px)`;
+        console.log(this._options);
+        this._container.append(canvas);
+        this._canvas = canvas;
+        this.onResize();
+    }
+    initControl() {
+        this._control = new this._controlType(this._canvas.getContext("webgl"), this._options);
+    }
+    addEventListeners() {
+        this._resizeObserver = new ResizeObserver(this.onResize);
+        this._resizeObserver.observe(this._container);
+        this._container.addEventListener("pointermove", this.onPointerMove);
+        window.addEventListener("pointerdown", this.onPointerDown);
+        window.addEventListener("pointerup", this.onPointerUp);
+        window.addEventListener("blur", this.onPointerUp);
+    }
+    removeEventListeners() {
+        this._resizeObserver.unobserve(this._container);
+        this._resizeObserver.disconnect();
+        this._resizeObserver = null;
+        this._container.removeEventListener("pointermove", this.onPointerMove);
+        window.removeEventListener("pointerdown", this.onPointerDown);
+        window.removeEventListener("pointerup", this.onPointerUp);
+        window.removeEventListener("blur", this.onPointerUp);
+    }
 }
-class AnimationFactory {
-    static createDotsAnimation(containerSelector, options = null) {
+
+class WGLAnimationFactory {
+    static createSpriteAnimation(containerSelector, options = null) {
         const container = document.querySelector(containerSelector);
         if (!container) {
             throw new Error("Container not found");
@@ -2473,9 +2472,9 @@ class AnimationFactory {
         if (window.getComputedStyle(container).getPropertyValue("position") === "static") {
             throw new Error("Container is not positioned");
         }
-        const combinedOptions = new DotAnimationOptions(options);
-        return new AnimationWebGl(container, combinedOptions, DotWebGlAnimationControl);
+        const finalOptions = new SpriteAnimationOptions(options);
+        return new WGLAnimation(container, finalOptions, SpriteAnimationControl);
     }
 }
 
-export { AnimationFactory };
+export { SpriteAnimationOptions, WGLAnimationFactory };

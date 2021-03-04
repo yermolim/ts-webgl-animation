@@ -1,2 +1,2 @@
-# dots-animation-webgl
-module for filling your html container with fancy moving dots animation
+# ts-webgl-animation
+module for filling your html container with fancy moving webgl animation

@@ -45,7 +45,7 @@
 
         (async function(){
             
-            const factory = dotsAnim.AnimationFactory; 
+            const factory = wglAnim.WGLAnimationFactory; 
 
             // let geometricConfig;
             // const geometricConfigRes = await fetch("./anim.config-geometric.json");
@@ -54,7 +54,7 @@
             //     geometricConfig = JSON.parse(text);
             // }
 
-            const geometricAnimation = factory.createDotsAnimation( // create 'IAnimation' instance
+            const geometricAnimation = factory.createSpriteAnimation( // create 'IAnimation' instance
                         "#container-geometric", // selector of existing 'HTMLElement' container
                         {}); // animation options config
             geometricAnimation.start();

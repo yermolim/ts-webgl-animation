@@ -1,6 +1,6 @@
-import { IAnimationOptions } from "./interfaces";
+import { AnimationOptions } from "../interfaces";
 
-class DotAnimationOptions implements IAnimationOptions {
+export class SpriteAnimationOptions implements AnimationOptions {
   expectedFps = 60;
 
   fixedNumber: number = null;
@@ -46,5 +46,3 @@ class DotAnimationOptions implements IAnimationOptions {
     }
   }
 }
-
-export { DotAnimationOptions };
