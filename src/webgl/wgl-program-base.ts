@@ -1,4 +1,4 @@
-import { Vec, Mat, isPowerOf2 } from "../math/common";
+import { Vec, Mat, isPowerOf2 } from "mathador";
 import { Attribute, ConstantInfo, BufferInfoOptions, 
   BufferInfo, IndexInfo } from "./program-data/attributes";
 import { shaderTypes, ShaderType, TypedArray, numberTypes, 

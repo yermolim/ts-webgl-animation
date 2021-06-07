@@ -16,6 +16,8 @@ module.exports = function(config) {
     karmaTypescriptConfig: {
       compilerOptions: {
         module: "commonjs",
+        target: "es2020",
+        lib: ["dom", "es2015", "es2020"],
       },
       tsconfig: "./tsconfig.json",
     },
@@ -31,6 +33,6 @@ module.exports = function(config) {
       skipFilesWithNoCoverage: true,
     },
     browsers: ["ChromeHeadless"],
-    singleRun: true
+    singleRun: true,
   });
 };

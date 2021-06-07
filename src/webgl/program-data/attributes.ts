@@ -1,5 +1,5 @@
 import { TypedArray, NumberType, numberTypes, numberSizes, 
-  bufferTypes, BufferUsageType, bufferUsageTypes, getNumberTypeByArray } from "./common";
+  bufferTypes, bufferUsageTypes, getNumberTypeByArray } from "./common";
 
 export interface BufferInfoOptions {  
   usage?: "static" | "dynamic";

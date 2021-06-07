@@ -39,1070 +39,7 @@ class SpriteAnimationOptions {
     }
 }
 
-function getRandomFloat(min, max) {
-    return Math.random() * (max - min) + min;
-}
-function getRandomArrayElement(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
-}
-function degToRad(deg) {
-    return deg * Math.PI / 180;
-}
-function clamp(v, min, max) {
-    return Math.max(min, Math.min(v, max));
-}
-function isPowerOf2(value) {
-    return (value & (value - 1)) === 0;
-}
-
-class Quaternion {
-    constructor(x = 0, y = 0, z = 0, w = 1) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.w = w;
-    }
-    static fromRotationMatrix(m) {
-        return new Quaternion().setFromRotationMatrix(m);
-    }
-    static fromEuler(e) {
-        return new Quaternion().setFromEuler(e);
-    }
-    static fromVec3Angle(v, theta) {
-        return new Quaternion().setFromVec3Angle(v, theta);
-    }
-    static fromVec3s(v1, v2) {
-        return new Quaternion().setFromVec3s(v1, v2);
-    }
-    static normalize(q) {
-        return q.clone().normalize();
-    }
-    static invert(q) {
-        return q.clone().normalize().invert();
-    }
-    static dotProduct(q1, q2) {
-        return q1.x * q2.x + q1.y * q2.y + q1.z * q2.z + q1.w * q2.w;
-    }
-    static getAngle(q1, q2) {
-        return q1.getAngle(q2);
-    }
-    static multiply(q1, q2) {
-        return q1.clone().multiply(q2);
-    }
-    static slerp(q1, q2, t) {
-        return q1.clone().slerp(q2, t);
-    }
-    static equals(q1, q2, precision = 6) {
-        return q1.equals(q2, precision);
-    }
-    clone() {
-        return new Quaternion(this.x, this.y, this.z, this.w);
-    }
-    set(x, y, z, w) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.w = w;
-        return this;
-    }
-    setFromVec3s(v1, v2) {
-        v1 = v1.clone().normalize();
-        v2 = v2.clone().normalize();
-        let w = v1.dotProduct(v2) + 1;
-        if (w < 0.000001) {
-            w = 0;
-            if (Math.abs(v1.x) > Math.abs(v1.z)) {
-                this.x = -v1.y;
-                this.y = v1.x;
-                this.z = 0;
-            }
-            else {
-                this.x = 0;
-                this.y = -v1.z;
-                this.z = v1.y;
-            }
-        }
-        else {
-            const { x, y, z } = v1.crossProduct(v2);
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
-        this.w = w;
-        return this.normalize();
-    }
-    setFromQ(q) {
-        this.x = q.x;
-        this.y = q.y;
-        this.z = q.z;
-        this.w = q.w;
-        return this;
-    }
-    setFromRotationMatrix(m) {
-        if (m.length !== 16) {
-            throw new Error("Matrix must contain 16 elements");
-        }
-        const [x_x, x_y, x_z, x_w, y_x, y_y, y_z, y_w, z_x, z_y, z_z, z_w, w_x, w_y, w_z, w_w] = m;
-        const trace = x_x + y_y + z_z;
-        if (trace > 0) {
-            const s = 0.5 / Math.sqrt(1 + trace);
-            this.set((y_z - z_y) * s, (z_x - x_z) * s, (x_y - y_x) * s, 0.25 / s);
-        }
-        else if (x_x > y_y && x_x > z_z) {
-            const s = 2 * Math.sqrt(1 + x_x - y_y - z_z);
-            this.set(0.25 * s, (y_x + x_y) / s, (z_x + x_z) / s, (y_z - z_y) / s);
-        }
-        else if (y_y > z_z) {
-            const s = 2 * Math.sqrt(1 + y_y - x_x - z_z);
-            this.set((y_x + x_y) / s, 0.25 * s, (z_y + y_z) / s, (z_x - x_z) / s);
-        }
-        else {
-            const s = 2 * Math.sqrt(1 + z_z - x_x - y_y);
-            this.set((z_x + x_z) / s, (z_y + y_z) / s, 0.25 * s, (x_y - y_x) / s);
-        }
-        return this;
-    }
-    setFromEuler(e) {
-        const c_x = Math.cos(e.x / 2);
-        const c_y = Math.cos(e.y / 2);
-        const c_z = Math.cos(e.z / 2);
-        const s_x = Math.sin(e.x / 2);
-        const s_y = Math.sin(e.y / 2);
-        const s_z = Math.sin(e.z / 2);
-        switch (e.order) {
-            case "XYZ":
-                this.x = s_x * c_y * c_z + c_x * s_y * s_z;
-                this.y = c_x * s_y * c_z - s_x * c_y * s_z;
-                this.z = c_x * c_y * s_z + s_x * s_y * c_z;
-                this.w = c_x * c_y * c_z - s_x * s_y * s_z;
-                break;
-            case "XZY":
-                this.x = s_x * c_y * c_z - c_x * s_y * s_z;
-                this.y = c_x * s_y * c_z - s_x * c_y * s_z;
-                this.z = c_x * c_y * s_z + s_x * s_y * c_z;
-                this.w = c_x * c_y * c_z + s_x * s_y * s_z;
-                break;
-            case "YXZ":
-                this.x = s_x * c_y * c_z + c_x * s_y * s_z;
-                this.y = c_x * s_y * c_z - s_x * c_y * s_z;
-                this.z = c_x * c_y * s_z - s_x * s_y * c_z;
-                this.w = c_x * c_y * c_z + s_x * s_y * s_z;
-                break;
-            case "YZX":
-                this.x = s_x * c_y * c_z + c_x * s_y * s_z;
-                this.y = c_x * s_y * c_z + s_x * c_y * s_z;
-                this.z = c_x * c_y * s_z - s_x * s_y * c_z;
-                this.w = c_x * c_y * c_z - s_x * s_y * s_z;
-                break;
-            case "ZXY":
-                this.x = s_x * c_y * c_z - c_x * s_y * s_z;
-                this.y = c_x * s_y * c_z + s_x * c_y * s_z;
-                this.z = c_x * c_y * s_z + s_x * s_y * c_z;
-                this.w = c_x * c_y * c_z - s_x * s_y * s_z;
-                break;
-            case "ZYX":
-                this.x = s_x * c_y * c_z - c_x * s_y * s_z;
-                this.y = c_x * s_y * c_z + s_x * c_y * s_z;
-                this.z = c_x * c_y * s_z - s_x * s_y * c_z;
-                this.w = c_x * c_y * c_z + s_x * s_y * s_z;
-                break;
-        }
-        return this;
-    }
-    setFromVec3Angle(v, theta) {
-        const vNorm = v.clone().normalize();
-        const halfTheta = theta / 2;
-        const halfThetaSin = Math.sin(halfTheta);
-        this.x = vNorm.x * halfThetaSin;
-        this.y = vNorm.y * halfThetaSin;
-        this.z = vNorm.z * halfThetaSin;
-        this.w = Math.cos(halfTheta);
-        return this;
-    }
-    getMagnitude() {
-        return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
-    }
-    normalize() {
-        const m = this.getMagnitude();
-        if (m) {
-            this.x /= m;
-            this.y /= m;
-            this.z /= m;
-            this.w /= m;
-        }
-        return this;
-    }
-    invert() {
-        this.normalize();
-        this.x *= -1;
-        this.y *= -1;
-        this.z *= -1;
-        return this;
-    }
-    dotProduct(q) {
-        return this.x * q.x + this.y * q.y + this.z * q.z + this.w * q.w;
-    }
-    getAngle(q) {
-        return 2 * Math.acos(Math.abs(clamp(this.dotProduct(q), -1, 1)));
-    }
-    multiply(q) {
-        const { x, y, z, w } = this;
-        const { x: X, y: Y, z: Z, w: W } = q;
-        this.x = x * W + w * X + y * Z - z * Y;
-        this.y = y * W + w * Y + z * X - x * Z;
-        this.z = z * W + w * Z + x * Y - y * X;
-        this.w = w * W - x * X - y * Y - z * Z;
-        return this;
-    }
-    slerp(q, t) {
-        t = clamp(t, 0, 1);
-        if (!t) {
-            return this;
-        }
-        if (t === 1) {
-            return this.setFromQ(q);
-        }
-        const { x, y, z, w } = this;
-        const { x: X, y: Y, z: Z, w: W } = q;
-        const halfThetaCos = x * X + y * Y + z * Z + w * W;
-        if (Math.abs(halfThetaCos) >= 1) {
-            return this;
-        }
-        const halfTheta = Math.acos(halfThetaCos);
-        const halfThetaSin = Math.sin(halfTheta);
-        if (Math.abs(halfThetaSin) < 0.000001) {
-            this.x = 0.5 * (x + X);
-            this.y = 0.5 * (y + Y);
-            this.z = 0.5 * (z + Z);
-            this.w = 0.5 * (w + W);
-            return this;
-        }
-        const a = Math.sin((1 - t) * halfTheta) / halfThetaSin;
-        const b = Math.sin(t * halfTheta) / halfThetaSin;
-        this.x = a * x + b * X;
-        this.y = a * y + b * Y;
-        this.z = a * z + b * Z;
-        this.w = a * w + b * W;
-        return this;
-    }
-    equals(q, precision = 6) {
-        return +this.x.toFixed(precision) === +q.x.toFixed(precision)
-            && +this.y.toFixed(precision) === +q.y.toFixed(precision)
-            && +this.z.toFixed(precision) === +q.z.toFixed(precision)
-            && +this.w.toFixed(precision) === +q.w.toFixed(precision);
-    }
-}
-
-class Vec3 {
-    constructor(x = 0, y = 0, z = 0) {
-        this.length = 3;
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
-    static multiplyByScalar(v, s) {
-        return new Vec3(v.x * s, v.y * s, v.z * s);
-    }
-    static addScalar(v, s) {
-        return new Vec3(v.x + s, v.y + s, v.z + s);
-    }
-    static normalize(v) {
-        return new Vec3().setFromVec3(v).normalize();
-    }
-    static add(v1, v2) {
-        return new Vec3(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
-    }
-    static substract(v1, v2) {
-        return new Vec3(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
-    }
-    static dotProduct(v1, v2) {
-        return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
-    }
-    static crossProduct(v1, v2) {
-        return new Vec3(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);
-    }
-    static onVector(v1, v2) {
-        return v1.clone().onVector(v2);
-    }
-    static onPlane(v, planeNormal) {
-        return v.clone().onPlane(planeNormal);
-    }
-    static applyMat3(v, m) {
-        return v.clone().applyMat3(m);
-    }
-    static applyMat4(v, m) {
-        return v.clone().applyMat4(m);
-    }
-    static lerp(v1, v2, t) {
-        return v1.clone().lerp(v2, t);
-    }
-    static equals(v1, v2, precision = 6) {
-        if (!v1) {
-            return false;
-        }
-        return v1.equals(v2, precision);
-    }
-    static getDistance(v1, v2) {
-        const x = v2.x - v1.x;
-        const y = v2.y - v1.y;
-        const z = v2.z - v1.z;
-        return Math.sqrt(x * x + y * y + z * z);
-    }
-    static getAngle(v1, v2) {
-        return v1.getAngle(v2);
-    }
-    clone() {
-        return new Vec3(this.x, this.y, this.z);
-    }
-    set(x, y, z) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        return this;
-    }
-    setFromVec3(v) {
-        this.x = v.x;
-        this.y = v.y;
-        this.z = v.z;
-        return this;
-    }
-    multiplyByScalar(s) {
-        this.x *= s;
-        this.y *= s;
-        this.z *= s;
-        return this;
-    }
-    addScalar(s) {
-        this.x += s;
-        this.y += s;
-        this.z += s;
-        return this;
-    }
-    getMagnitude() {
-        return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
-    }
-    getAngle(v) {
-        const d = this.getMagnitude() * v.getMagnitude();
-        if (!d) {
-            return Math.PI / 2;
-        }
-        const cos = this.dotProduct(v) / d;
-        return Math.acos(clamp(cos, -1, 1));
-    }
-    normalize() {
-        const m = this.getMagnitude();
-        if (m) {
-            this.x /= m;
-            this.y /= m;
-            this.z /= m;
-        }
-        return this;
-    }
-    add(v) {
-        this.x += v.x;
-        this.y += v.y;
-        this.z += v.z;
-        return this;
-    }
-    substract(v) {
-        this.x -= v.x;
-        this.y -= v.y;
-        this.z -= v.z;
-        return this;
-    }
-    dotProduct(v) {
-        return Vec3.dotProduct(this, v);
-    }
-    crossProduct(v) {
-        this.x = this.y * v.z - this.z * v.y;
-        this.y = this.z * v.x - this.x * v.z;
-        this.z = this.x * v.y - this.y * v.x;
-        return this;
-    }
-    onVector(v) {
-        const magnitude = this.getMagnitude();
-        if (!magnitude) {
-            return this.set(0, 0, 0);
-        }
-        return v.clone().multiplyByScalar(v.clone().dotProduct(this) / (magnitude * magnitude));
-    }
-    onPlane(planeNormal) {
-        return this.substract(this.clone().onVector(planeNormal));
-    }
-    applyMat3(m) {
-        if (m.length !== 9) {
-            throw new Error("Matrix must contain 9 elements");
-        }
-        const { x, y, z } = this;
-        const [x_x, x_y, x_z, y_x, y_y, y_z, z_x, z_y, z_z] = m;
-        this.x = x * x_x + y * y_x + z * z_x;
-        this.y = x * x_y + y * y_y + z * z_y;
-        this.z = x * x_z + y * y_z + z * z_z;
-        return this;
-    }
-    applyMat4(m) {
-        if (m.length !== 16) {
-            throw new Error("Matrix must contain 16 elements");
-        }
-        const { x, y, z } = this;
-        const [x_x, x_y, x_z, x_w, y_x, y_y, y_z, y_w, z_x, z_y, z_z, z_w, w_x, w_y, w_z, w_w] = m;
-        const w = 1 / (x * x_w + y * y_w + z * z_w + w_w);
-        this.x = (x * x_x + y * y_x + z * z_x + w_x) * w;
-        this.y = (x * x_y + y * y_y + z * z_y + w_y) * w;
-        this.z = (x * x_z + y * y_z + z * z_z + w_z) * w;
-        return this;
-    }
-    lerp(v, t) {
-        this.x += t * (v.x - this.x);
-        this.y += t * (v.y - this.y);
-        this.z += t * (v.z - this.z);
-        return this;
-    }
-    equals(v, precision = 6) {
-        if (!v) {
-            return false;
-        }
-        return +this.x.toFixed(precision) === +v.x.toFixed(precision)
-            && +this.y.toFixed(precision) === +v.y.toFixed(precision)
-            && +this.z.toFixed(precision) === +v.z.toFixed(precision);
-    }
-    toArray() {
-        return [this.x, this.y, this.z];
-    }
-    toIntArray() {
-        return new Int32Array(this);
-    }
-    toFloatArray() {
-        return new Float32Array(this);
-    }
-    *[Symbol.iterator]() {
-        yield this.x;
-        yield this.y;
-        yield this.z;
-    }
-}
-
-class Mat4 {
-    constructor() {
-        this.length = 16;
-        this._matrix = new Array(this.length);
-        this._matrix[0] = 1;
-        this._matrix[1] = 0;
-        this._matrix[2] = 0;
-        this._matrix[3] = 0;
-        this._matrix[4] = 0;
-        this._matrix[5] = 1;
-        this._matrix[6] = 0;
-        this._matrix[7] = 0;
-        this._matrix[8] = 0;
-        this._matrix[9] = 0;
-        this._matrix[10] = 1;
-        this._matrix[11] = 0;
-        this._matrix[12] = 0;
-        this._matrix[13] = 0;
-        this._matrix[14] = 0;
-        this._matrix[15] = 1;
-    }
-    get x_x() {
-        return this._matrix[0];
-    }
-    get x_y() {
-        return this._matrix[1];
-    }
-    get x_z() {
-        return this._matrix[2];
-    }
-    get x_w() {
-        return this._matrix[3];
-    }
-    get y_x() {
-        return this._matrix[4];
-    }
-    get y_y() {
-        return this._matrix[5];
-    }
-    get y_z() {
-        return this._matrix[6];
-    }
-    get y_w() {
-        return this._matrix[7];
-    }
-    get z_x() {
-        return this._matrix[8];
-    }
-    get z_y() {
-        return this._matrix[9];
-    }
-    get z_z() {
-        return this._matrix[10];
-    }
-    get z_w() {
-        return this._matrix[11];
-    }
-    get w_x() {
-        return this._matrix[12];
-    }
-    get w_y() {
-        return this._matrix[13];
-    }
-    get w_z() {
-        return this._matrix[14];
-    }
-    get w_w() {
-        return this._matrix[15];
-    }
-    static fromMat4(m) {
-        return new Mat4().setFromMat4(m);
-    }
-    static fromTRS(t, r, s) {
-        return new Mat4().setFromTRS(t, r, s);
-    }
-    static fromQuaternion(q) {
-        return new Mat4().setFromQuaternion(q);
-    }
-    static multiply(m1, m2) {
-        const m = new Mat4();
-        m.set(m1.x_x * m2.x_x + m1.x_y * m2.y_x + m1.x_z * m2.z_x + m1.x_w * m2.w_x, m1.x_x * m2.x_y + m1.x_y * m2.y_y + m1.x_z * m2.z_y + m1.x_w * m2.w_y, m1.x_x * m2.x_z + m1.x_y * m2.y_z + m1.x_z * m2.z_z + m1.x_w * m2.w_z, m1.x_x * m2.x_w + m1.x_y * m2.y_w + m1.x_z * m2.z_w + m1.x_w * m2.w_w, m1.y_x * m2.x_x + m1.y_y * m2.y_x + m1.y_z * m2.z_x + m1.y_w * m2.w_x, m1.y_x * m2.x_y + m1.y_y * m2.y_y + m1.y_z * m2.z_y + m1.y_w * m2.w_y, m1.y_x * m2.x_z + m1.y_y * m2.y_z + m1.y_z * m2.z_z + m1.y_w * m2.w_z, m1.y_x * m2.x_w + m1.y_y * m2.y_w + m1.y_z * m2.z_w + m1.y_w * m2.w_w, m1.z_x * m2.x_x + m1.z_y * m2.y_x + m1.z_z * m2.z_x + m1.z_w * m2.w_x, m1.z_x * m2.x_y + m1.z_y * m2.y_y + m1.z_z * m2.z_y + m1.z_w * m2.w_y, m1.z_x * m2.x_z + m1.z_y * m2.y_z + m1.z_z * m2.z_z + m1.z_w * m2.w_z, m1.z_x * m2.x_w + m1.z_y * m2.y_w + m1.z_z * m2.z_w + m1.z_w * m2.w_w, m1.w_x * m2.x_x + m1.w_y * m2.y_x + m1.w_z * m2.z_x + m1.w_w * m2.w_x, m1.w_x * m2.x_y + m1.w_y * m2.y_y + m1.w_z * m2.z_y + m1.w_w * m2.w_y, m1.w_x * m2.x_z + m1.w_y * m2.y_z + m1.w_z * m2.z_z + m1.w_w * m2.w_z, m1.w_x * m2.x_w + m1.w_y * m2.y_w + m1.w_z * m2.z_w + m1.w_w * m2.w_w);
-        return m;
-    }
-    static multiplyScalar(m, s) {
-        const res = new Mat4();
-        for (let i = 0; i < this.length; i++) {
-            res._matrix[i] = m._matrix[i] * s;
-        }
-        return res;
-    }
-    static transpose(m) {
-        const res = new Mat4();
-        res.set(m.x_x, m.y_x, m.z_x, m.w_x, m.x_y, m.y_y, m.z_y, m.w_y, m.x_z, m.y_z, m.z_z, m.w_z, m.x_w, m.y_w, m.z_w, m.w_w);
-        return res;
-    }
-    static invert(m) {
-        const s = 1 / m.getDeterminant();
-        const [x_x, x_y, x_z, x_w, y_x, y_y, y_z, y_w, z_x, z_y, z_z, z_w, w_x, w_y, w_z, w_w] = m._matrix;
-        const res = new Mat4().set((y_z * z_w * w_y - y_w * z_z * w_y + y_w * z_y * w_z - y_y * z_w * w_z - y_z * z_y * w_w + y_y * z_z * w_w) * s, (x_w * z_z * w_y - x_z * z_w * w_y - x_w * z_y * w_z + x_y * z_w * w_z + x_z * z_y * w_w - x_y * z_z * w_w) * s, (x_z * y_w * w_y - x_w * y_z * w_y + x_w * y_y * w_z - x_y * y_w * w_z - x_z * y_y * w_w + x_y * y_z * w_w) * s, (x_w * y_z * z_y - x_z * y_w * z_y - x_w * y_y * z_z + x_y * y_w * z_z + x_z * y_y * z_w - x_y * y_z * z_w) * s, (y_w * z_z * w_x - y_z * z_w * w_x - y_w * z_x * w_z + y_x * z_w * w_z + y_z * z_x * w_w - y_x * z_z * w_w) * s, (x_z * z_w * w_x - x_w * z_z * w_x + x_w * z_x * w_z - x_x * z_w * w_z - x_z * z_x * w_w + x_x * z_z * w_w) * s, (x_w * y_z * w_x - x_z * y_w * w_x - x_w * y_x * w_z + x_x * y_w * w_z + x_z * y_x * w_w - x_x * y_z * w_w) * s, (x_z * y_w * z_x - x_w * y_z * z_x + x_w * y_x * z_z - x_x * y_w * z_z - x_z * y_x * z_w + x_x * y_z * z_w) * s, (y_y * z_w * w_x - y_w * z_y * w_x + y_w * z_x * w_y - y_x * z_w * w_y - y_y * z_x * w_w + y_x * z_y * w_w) * s, (x_w * z_y * w_x - x_y * z_w * w_x - x_w * z_x * w_y + x_x * z_w * w_y + x_y * z_x * w_w - x_x * z_y * w_w) * s, (x_y * y_w * w_x - x_w * y_y * w_x + x_w * y_x * w_y - x_x * y_w * w_y - x_y * y_x * w_w + x_x * y_y * w_w) * s, (x_w * y_y * z_x - x_y * y_w * z_x - x_w * y_x * z_y + x_x * y_w * z_y + x_y * y_x * z_w - x_x * y_y * z_w) * s, (y_z * z_y * w_x - y_y * z_z * w_x - y_z * z_x * w_y + y_x * z_z * w_y + y_y * z_x * w_z - y_x * z_y * w_z) * s, (x_y * z_z * w_x - x_z * z_y * w_x + x_z * z_x * w_y - x_x * z_z * w_y - x_y * z_x * w_z + x_x * z_y * w_z) * s, (x_z * y_y * w_x - x_y * y_z * w_x - x_z * y_x * w_y + x_x * y_z * w_y + x_y * y_x * w_z - x_x * y_y * w_z) * s, (x_y * y_z * z_x - x_z * y_y * z_x + x_z * y_x * z_y - x_x * y_z * z_y - x_y * y_x * z_z + x_x * y_y * z_z) * s);
-        return res;
-    }
-    static lookAt(source, target, up) {
-        const vZ = Vec3.equals(source, target)
-            ? new Vec3(0, 0, 1)
-            : Vec3.substract(source, target).normalize();
-        let vX = Vec3.crossProduct(up, vZ).normalize();
-        if (!vX.getMagnitude()) {
-            if (Math.abs(up.z) === 1) {
-                vZ.x += 0.00001;
-            }
-            else {
-                vZ.z += 0.00001;
-            }
-            vZ.normalize();
-            vX = Vec3.crossProduct(up, vZ).normalize();
-        }
-        const vY = Vec3.crossProduct(vZ, vX).normalize();
-        return new Mat4().set(vX.x, vX.y, vX.z, 0, vY.x, vY.y, vY.z, 0, vZ.x, vZ.y, vZ.z, 0, source.x, source.y, source.z, 1);
-    }
-    static buildScale(x, y = undefined, z = undefined) {
-        y ?? (y = x);
-        z ?? (z = x);
-        return new Mat4().set(x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1);
-    }
-    static buildRotationX(theta) {
-        const c = Math.cos(theta);
-        const s = Math.sin(theta);
-        return new Mat4().set(1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1);
-    }
-    static buildRotationY(theta) {
-        const c = Math.cos(theta);
-        const s = Math.sin(theta);
-        return new Mat4().set(c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1);
-    }
-    static buildRotationZ(theta) {
-        const c = Math.cos(theta);
-        const s = Math.sin(theta);
-        return new Mat4().set(c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
-    }
-    static buildTranslate(x, y, z) {
-        return new Mat4().set(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1);
-    }
-    static buildOrthographic(near, far, left, right, bottom, top) {
-        return new Mat4().set(2 / (right - left), 0, 0, 0, 0, 2 / (top - bottom), 0, 0, 0, 0, 2 / (near - far), 0, (left + right) / (left - right), (bottom + top) / (bottom - top), (near + far) / (near - far), 1);
-    }
-    static buildPerspective(near, far, ...args) {
-        if (args.length === 4) {
-            const [left, right, bottom, top] = args;
-            return new Mat4().set(2 * near / (right - left), 0, 0, 0, 0, 2 * near / (top - bottom), 0, 0, (right + left) / (right - left), (top + bottom) / (top - bottom), (near + far) / (near - far), -1, 0, 0, 2 * near * far / (near - far), 0);
-        }
-        else if (args.length === 2) {
-            const [fov, aspectRatio] = args;
-            const f = Math.tan(0.5 * Math.PI - 0.5 * fov);
-            return new Mat4().set(f / aspectRatio, 0, 0, 0, 0, f, 0, 0, 0, 0, (near + far) / (near - far), -1, 0, 0, 2 * near * far / (near - far), 0);
-        }
-        else {
-            throw new Error("Incorrect args quantity");
-        }
-    }
-    static equals(m1, m2, precision = 6) {
-        return m1.equals(m2, precision);
-    }
-    clone() {
-        return new Mat4().set(this.x_x, this.x_y, this.x_z, this.x_w, this.y_x, this.y_y, this.y_z, this.y_w, this.z_x, this.z_y, this.z_z, this.z_w, this.w_x, this.w_y, this.w_z, this.w_w);
-    }
-    set(x_x, x_y, x_z, x_w, y_x, y_y, y_z, y_w, z_x, z_y, z_z, z_w, w_x, w_y, w_z, w_w) {
-        this._matrix[0] = x_x;
-        this._matrix[1] = x_y;
-        this._matrix[2] = x_z;
-        this._matrix[3] = x_w;
-        this._matrix[4] = y_x;
-        this._matrix[5] = y_y;
-        this._matrix[6] = y_z;
-        this._matrix[7] = y_w;
-        this._matrix[8] = z_x;
-        this._matrix[9] = z_y;
-        this._matrix[10] = z_z;
-        this._matrix[11] = z_w;
-        this._matrix[12] = w_x;
-        this._matrix[13] = w_y;
-        this._matrix[14] = w_z;
-        this._matrix[15] = w_w;
-        return this;
-    }
-    reset() {
-        this._matrix[0] = 1;
-        this._matrix[1] = 0;
-        this._matrix[2] = 0;
-        this._matrix[3] = 0;
-        this._matrix[4] = 0;
-        this._matrix[5] = 1;
-        this._matrix[6] = 0;
-        this._matrix[7] = 0;
-        this._matrix[8] = 0;
-        this._matrix[9] = 0;
-        this._matrix[10] = 1;
-        this._matrix[11] = 0;
-        this._matrix[12] = 0;
-        this._matrix[13] = 0;
-        this._matrix[14] = 0;
-        this._matrix[15] = 1;
-        return this;
-    }
-    setFromMat4(m) {
-        for (let i = 0; i < this.length; i++) {
-            this._matrix[i] = m._matrix[i];
-        }
-        return this;
-    }
-    setFromTRS(t, r, s) {
-        const x_x = 2 * r.x * r.x;
-        const x_y = 2 * r.y * r.x;
-        const x_z = 2 * r.z * r.x;
-        const y_y = 2 * r.y * r.y;
-        const y_z = 2 * r.z * r.y;
-        const z_z = 2 * r.z * r.z;
-        const w_x = 2 * r.x * r.w;
-        const w_y = 2 * r.y * r.w;
-        const w_z = 2 * r.z * r.w;
-        this.set((1 - y_y - z_z) * s.x, (x_y + w_z) * s.x, (x_z - w_y) * s.x, 0, (x_y - w_z) * s.y, (1 - x_x - z_z) * s.y, (y_z + w_x) * s.y, 0, (x_z + w_y) * s.z, (y_z - w_x) * s.z, (1 - x_x - y_y) * s.z, 0, t.x, t.y, t.z, 1);
-        return this;
-    }
-    setFromQuaternion(q) {
-        return this.setFromTRS(new Vec3(0, 0, 0), q, new Vec3(1, 1, 1));
-    }
-    multiply(mat) {
-        const [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = this._matrix;
-        const [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P] = mat._matrix;
-        this._matrix[0] = a * A + b * E + c * I + d * M;
-        this._matrix[1] = a * B + b * F + c * J + d * N;
-        this._matrix[2] = a * C + b * G + c * K + d * O;
-        this._matrix[3] = a * D + b * H + c * L + d * P;
-        this._matrix[4] = e * A + f * E + g * I + h * M;
-        this._matrix[5] = e * B + f * F + g * J + h * N;
-        this._matrix[6] = e * C + f * G + g * K + h * O;
-        this._matrix[7] = e * D + f * H + g * L + h * P;
-        this._matrix[8] = i * A + j * E + k * I + l * M;
-        this._matrix[9] = i * B + j * F + k * J + l * N;
-        this._matrix[10] = i * C + j * G + k * K + l * O;
-        this._matrix[11] = i * D + j * H + k * L + l * P;
-        this._matrix[12] = m * A + n * E + o * I + p * M;
-        this._matrix[13] = m * B + n * F + o * J + p * N;
-        this._matrix[14] = m * C + n * G + o * K + p * O;
-        this._matrix[15] = m * D + n * H + o * L + p * P;
-        return this;
-    }
-    multiplyScalar(s) {
-        for (let i = 0; i < this.length; i++) {
-            this._matrix[i] *= s;
-        }
-        return this;
-    }
-    transpose() {
-        const temp = new Mat4().setFromMat4(this);
-        this.set(temp.x_x, temp.y_x, temp.z_x, temp.w_x, temp.x_y, temp.y_y, temp.z_y, temp.w_y, temp.x_z, temp.y_z, temp.z_z, temp.w_z, temp.x_w, temp.y_w, temp.z_w, temp.w_w);
-        return this;
-    }
-    invert() {
-        const s = 1 / this.getDeterminant();
-        const [x_x, x_y, x_z, x_w, y_x, y_y, y_z, y_w, z_x, z_y, z_z, z_w, w_x, w_y, w_z, w_w] = this._matrix;
-        this.set((y_z * z_w * w_y - y_w * z_z * w_y + y_w * z_y * w_z - y_y * z_w * w_z - y_z * z_y * w_w + y_y * z_z * w_w) * s, (x_w * z_z * w_y - x_z * z_w * w_y - x_w * z_y * w_z + x_y * z_w * w_z + x_z * z_y * w_w - x_y * z_z * w_w) * s, (x_z * y_w * w_y - x_w * y_z * w_y + x_w * y_y * w_z - x_y * y_w * w_z - x_z * y_y * w_w + x_y * y_z * w_w) * s, (x_w * y_z * z_y - x_z * y_w * z_y - x_w * y_y * z_z + x_y * y_w * z_z + x_z * y_y * z_w - x_y * y_z * z_w) * s, (y_w * z_z * w_x - y_z * z_w * w_x - y_w * z_x * w_z + y_x * z_w * w_z + y_z * z_x * w_w - y_x * z_z * w_w) * s, (x_z * z_w * w_x - x_w * z_z * w_x + x_w * z_x * w_z - x_x * z_w * w_z - x_z * z_x * w_w + x_x * z_z * w_w) * s, (x_w * y_z * w_x - x_z * y_w * w_x - x_w * y_x * w_z + x_x * y_w * w_z + x_z * y_x * w_w - x_x * y_z * w_w) * s, (x_z * y_w * z_x - x_w * y_z * z_x + x_w * y_x * z_z - x_x * y_w * z_z - x_z * y_x * z_w + x_x * y_z * z_w) * s, (y_y * z_w * w_x - y_w * z_y * w_x + y_w * z_x * w_y - y_x * z_w * w_y - y_y * z_x * w_w + y_x * z_y * w_w) * s, (x_w * z_y * w_x - x_y * z_w * w_x - x_w * z_x * w_y + x_x * z_w * w_y + x_y * z_x * w_w - x_x * z_y * w_w) * s, (x_y * y_w * w_x - x_w * y_y * w_x + x_w * y_x * w_y - x_x * y_w * w_y - x_y * y_x * w_w + x_x * y_y * w_w) * s, (x_w * y_y * z_x - x_y * y_w * z_x - x_w * y_x * z_y + x_x * y_w * z_y + x_y * y_x * z_w - x_x * y_y * z_w) * s, (y_z * z_y * w_x - y_y * z_z * w_x - y_z * z_x * w_y + y_x * z_z * w_y + y_y * z_x * w_z - y_x * z_y * w_z) * s, (x_y * z_z * w_x - x_z * z_y * w_x + x_z * z_x * w_y - x_x * z_z * w_y - x_y * z_x * w_z + x_x * z_y * w_z) * s, (x_z * y_y * w_x - x_y * y_z * w_x - x_z * y_x * w_y + x_x * y_z * w_y + x_y * y_x * w_z - x_x * y_y * w_z) * s, (x_y * y_z * z_x - x_z * y_y * z_x + x_z * y_x * z_y - x_x * y_z * z_y - x_y * y_x * z_z + x_x * y_y * z_z) * s);
-        return this;
-    }
-    getDeterminant() {
-        const [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p] = this._matrix;
-        const det = d * g * j * m - c * h * j * m - d * f * k * m + b * h * k * m +
-            c * f * l * m - b * g * l * m - d * g * i * n + c * h * i * n +
-            d * e * k * n - a * h * k * n - c * e * l * n + a * g * l * n +
-            d * f * i * o - b * h * i * o - d * e * j * o + a * h * j * o +
-            b * e * l * o - a * f * l * o - c * f * i * p + b * g * i * p +
-            c * e * j * p - a * g * j * p - b * e * k * p + a * f * k * p;
-        return det;
-    }
-    getTRS() {
-        const t = new Vec3(this.w_x, this.w_y, this.w_z);
-        const d = this.getDeterminant();
-        const s_x = new Vec3(this.x_x, this.x_y, this.x_z).getMagnitude() * (d < 0 ? -1 : 1);
-        const s_y = new Vec3(this.y_x, this.y_y, this.y_z).getMagnitude();
-        const s_z = new Vec3(this.z_x, this.z_y, this.z_z).getMagnitude();
-        const s = new Vec3(s_x, s_y, s_z);
-        const rm = new Mat4().set(this.x_x / s_x, this.x_y / s_x, this.x_z / s_x, 0, this.y_x / s_y, this.y_y / s_y, this.y_z / s_y, 0, this.z_x / s_z, this.z_y / s_z, this.z_z / s_z, 0, 0, 0, 0, 1);
-        const r = Quaternion.fromRotationMatrix(rm);
-        return { t, r, s };
-    }
-    equals(m, precision = 6) {
-        for (let i = 0; i < this.length; i++) {
-            if (+this._matrix[i].toFixed(precision) !== +m._matrix[i].toFixed(precision)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    applyScaling(x, y = undefined, z = undefined) {
-        const m = Mat4.buildScale(x, y, z);
-        return this.multiply(m);
-    }
-    applyTranslation(x, y, z) {
-        const m = Mat4.buildTranslate(x, y, z);
-        return this.multiply(m);
-    }
-    applyRotation(axis, theta) {
-        let m;
-        switch (axis) {
-            case "x":
-            default:
-                m = Mat4.buildRotationX(theta);
-                break;
-            case "y":
-                m = Mat4.buildRotationY(theta);
-                break;
-            case "z":
-                m = Mat4.buildRotationZ(theta);
-                break;
-        }
-        return this.multiply(m);
-    }
-    toArray() {
-        return this._matrix.slice();
-    }
-    toIntArray() {
-        return new Int32Array(this);
-    }
-    toFloatArray() {
-        return new Float32Array(this);
-    }
-    *[Symbol.iterator]() {
-        for (let i = 0; i < this.length; i++) {
-            yield this._matrix[i];
-        }
-    }
-}
-
-class Vec2 {
-    constructor(x = 0, y = 0) {
-        this.length = 2;
-        this.x = x;
-        this.y = y;
-    }
-    static multiplyByScalar(v, s) {
-        return new Vec2(v.x * s, v.y * s);
-    }
-    static addScalar(v, s) {
-        return new Vec2(v.x + s, v.y + s);
-    }
-    static normalize(v) {
-        return new Vec2().setFromVec2(v).normalize();
-    }
-    static add(v1, v2) {
-        return new Vec2(v1.x + v2.x, v1.y + v2.y);
-    }
-    static substract(v1, v2) {
-        return new Vec2(v1.x - v2.x, v1.y - v2.y);
-    }
-    static dotProduct(v1, v2) {
-        return v1.x * v2.x + v1.y * v2.y;
-    }
-    static applyMat3(v, m) {
-        return v.clone().applyMat3(m);
-    }
-    static lerp(v1, v2, t) {
-        return v1.clone().lerp(v2, t);
-    }
-    static rotate(v, center, theta) {
-        return v.clone().rotate(center, theta);
-    }
-    static equals(v1, v2, precision = 6) {
-        if (!v1) {
-            return false;
-        }
-        return v1.equals(v2);
-    }
-    static getDistance(v1, v2) {
-        const x = v2.x - v1.x;
-        const y = v2.y - v1.y;
-        return Math.sqrt(x * x + y * y);
-    }
-    clone() {
-        return new Vec2(this.x, this.y);
-    }
-    set(x, y) {
-        this.x = x;
-        this.y = y;
-        return this;
-    }
-    setFromVec2(vec2) {
-        this.x = vec2.x;
-        this.y = vec2.y;
-        return this;
-    }
-    multiplyByScalar(s) {
-        this.x *= s;
-        this.y *= s;
-        return this;
-    }
-    addScalar(s) {
-        this.x += s;
-        this.y += s;
-        return this;
-    }
-    getMagnitude() {
-        return Math.sqrt(this.x * this.x + this.y * this.y);
-    }
-    normalize() {
-        const m = this.getMagnitude();
-        if (m) {
-            this.x /= m;
-            this.y /= m;
-        }
-        return this;
-    }
-    add(v) {
-        this.x += v.x;
-        this.y += v.y;
-        return this;
-    }
-    substract(v) {
-        this.x -= v.x;
-        this.y -= v.y;
-        return this;
-    }
-    dotProduct(v) {
-        return Vec2.dotProduct(this, v);
-    }
-    applyMat3(m) {
-        if (m.length !== 9) {
-            throw new Error("Matrix must contain 9 elements");
-        }
-        const { x, y } = this;
-        const [x_x, x_y, , y_x, y_y, , z_x, z_y,] = m;
-        this.x = x * x_x + y * y_x + z_x;
-        this.y = x * x_y + y * y_y + z_y;
-        return this;
-    }
-    lerp(v, t) {
-        this.x += t * (v.x - this.x);
-        this.y += t * (v.y - this.y);
-        return this;
-    }
-    rotate(center, theta) {
-        const s = Math.sin(theta);
-        const c = Math.cos(theta);
-        const x = this.x - center.x;
-        const y = this.y - center.y;
-        this.x = x * c - y * s + center.x;
-        this.y = x * s + y * c + center.y;
-        return this;
-    }
-    equals(v, precision = 6) {
-        if (!v) {
-            return false;
-        }
-        return +this.x.toFixed(precision) === +v.x.toFixed(precision)
-            && +this.y.toFixed(precision) === +v.y.toFixed(precision);
-    }
-    toArray() {
-        return [this.x, this.y];
-    }
-    toIntArray() {
-        return new Int32Array(this);
-    }
-    toFloatArray() {
-        return new Float32Array(this);
-    }
-    *[Symbol.iterator]() {
-        yield this.x;
-        yield this.y;
-    }
-}
-
-class Vec4 {
-    constructor(x = 0, y = 0, z = 0, w = 1) {
-        this.length = 4;
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.w = w;
-    }
-    static fromVec3(v) {
-        return new Vec4(v.x, v.y, v.z);
-    }
-    static multiplyByScalar(v, s) {
-        return new Vec4(v.x * s, v.y * s, v.z * s, v.w * s);
-    }
-    static addScalar(v, s) {
-        return new Vec4(v.x + s, v.y + s, v.z + s, v.w + s);
-    }
-    static normalize(v) {
-        return new Vec4().setFromVec4(v).normalize();
-    }
-    static add(v1, v2) {
-        return new Vec4(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w);
-    }
-    static substract(v1, v2) {
-        return new Vec4(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z, v1.w - v2.w);
-    }
-    static dotProduct(v1, v2) {
-        return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w;
-    }
-    static applyMat4(v, m) {
-        return v.clone().applyMat4(m);
-    }
-    static lerp(v1, v2, t) {
-        return v1.clone().lerp(v2, t);
-    }
-    static equals(v1, v2, precision = 6) {
-        if (!v1) {
-            return false;
-        }
-        return v1.equals(v2, precision);
-    }
-    clone() {
-        return new Vec4(this.x, this.y, this.z, this.w);
-    }
-    set(x, y, z, w) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.w = w;
-        return this;
-    }
-    setFromVec3(v) {
-        this.x = v.x;
-        this.y = v.y;
-        this.z = v.z;
-        this.w = 1;
-    }
-    setFromVec4(v) {
-        this.x = v.x;
-        this.y = v.y;
-        this.z = v.z;
-        this.w = v.w;
-        return this;
-    }
-    multiplyByScalar(s) {
-        this.x *= s;
-        this.y *= s;
-        this.z *= s;
-        this.w *= s;
-        return this;
-    }
-    addScalar(s) {
-        this.x += s;
-        this.y += s;
-        this.z += s;
-        this.w += s;
-        return this;
-    }
-    getMagnitude() {
-        return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
-    }
-    normalize() {
-        const m = this.getMagnitude();
-        if (m) {
-            this.x /= m;
-            this.y /= m;
-            this.z /= m;
-            this.w /= m;
-        }
-        return this;
-    }
-    add(v) {
-        this.x += v.x;
-        this.y += v.y;
-        this.z += v.z;
-        this.w += v.w;
-        return this;
-    }
-    substract(v) {
-        this.x -= v.x;
-        this.y -= v.y;
-        this.z -= v.z;
-        this.w -= v.w;
-        return this;
-    }
-    dotProduct(v) {
-        return this.x * v.x + this.y * v.y + this.z * v.z + this.w * v.w;
-    }
-    applyMat4(m) {
-        if (m.length !== 16) {
-            throw new Error("Matrix must contain 16 elements");
-        }
-        const { x, y, z, w } = this;
-        const [x_x, x_y, x_z, x_w, y_x, y_y, y_z, y_w, z_x, z_y, z_z, z_w, w_x, w_y, w_z, w_w] = m;
-        this.x = x * x_x + y * y_x + z * z_x + w * w_x;
-        this.y = x * x_y + y * y_y + z * z_y + w * w_y;
-        this.z = x * x_z + y * y_z + z * z_z + w * w_z;
-        this.w = x * x_w + y * y_w + z * z_w + w * w_w;
-        return this;
-    }
-    lerp(v, t) {
-        this.x += t * (v.x - this.x);
-        this.y += t * (v.y - this.y);
-        this.z += t * (v.z - this.z);
-        this.w += t * (v.w - this.w);
-        return this;
-    }
-    equals(v, precision = 6) {
-        if (!v) {
-            return false;
-        }
-        return +this.x.toFixed(precision) === +v.x.toFixed(precision)
-            && +this.y.toFixed(precision) === +v.y.toFixed(precision)
-            && +this.z.toFixed(precision) === +v.z.toFixed(precision)
-            && +this.w.toFixed(precision) === +v.w.toFixed(precision);
-    }
-    toArray() {
-        return [this.x, this.y, this.z, this.w];
-    }
-    toIntArray() {
-        return new Int32Array(this);
-    }
-    toFloatArray() {
-        return new Float32Array(this);
-    }
-    *[Symbol.iterator]() {
-        yield this.x;
-        yield this.y;
-        yield this.z;
-        yield this.w;
-    }
-}
+function i(t,i){return Math.random()*(i-t)+t}function s(t){return t[Math.floor(Math.random()*t.length)]}function e(t){return t*Math.PI/180}function n(t,i,s){return Math.max(i,Math.min(t,s))}function y(t){return 0==(t&t-1)}class u{constructor(t=0,i=0){this.length=2,this.x=t,this.y=i;}static multiplyByScalar(t,i){return new u(t.x*i,t.y*i)}static addScalar(t,i){return new u(t.x+i,t.y+i)}static normalize(t){return (new u).setFromVec2(t).normalize()}static add(t,i){return new u(t.x+i.x,t.y+i.y)}static substract(t,i){return new u(t.x-i.x,t.y-i.y)}static dotProduct(t,i){return t.x*i.x+t.y*i.y}static applyMat3(t,i){return t.clone().applyMat3(i)}static lerp(t,i,s){return t.clone().lerp(i,s)}static rotate(t,i,s){return t.clone().rotate(i,s)}static equals(t,i,s=6){return !!t&&t.equals(i)}static getDistance(t,i){const s=i.x-t.x,r=i.y-t.y;return Math.sqrt(s*s+r*r)}static minMax(...t){return {min:new u(Math.min(...t.map((t=>t.x))),Math.min(...t.map((t=>t.y)))),max:new u(Math.max(...t.map((t=>t.x))),Math.max(...t.map((t=>t.y))))}}clone(){return new u(this.x,this.y)}set(t,i){return this.x=t,this.y=i,this}setFromVec2(t){return this.x=t.x,this.y=t.y,this}multiplyByScalar(t){return this.x*=t,this.y*=t,this}addScalar(t){return this.x+=t,this.y+=t,this}getMagnitude(){return Math.sqrt(this.x*this.x+this.y*this.y)}normalize(){const t=this.getMagnitude();return t&&(this.x/=t,this.y/=t),this}add(t){return this.x+=t.x,this.y+=t.y,this}substract(t){return this.x-=t.x,this.y-=t.y,this}dotProduct(t){return u.dotProduct(this,t)}applyMat3(t){if(9!==t.length)throw new Error("Matrix must contain 9 elements");const{x:i,y:s}=this,[r,e,,h,a,,n,x]=t;return this.x=i*r+s*h+n,this.y=i*e+s*a+x,this}lerp(t,i){return this.x+=i*(t.x-this.x),this.y+=i*(t.y-this.y),this}rotate(t,i){const s=Math.sin(i),r=Math.cos(i),e=this.x-t.x,h=this.y-t.y;return this.x=e*r-h*s+t.x,this.y=e*s+h*r+t.y,this}equals(t,i=6){return !!t&&(+this.x.toFixed(i)==+t.x.toFixed(i)&&+this.y.toFixed(i)==+t.y.toFixed(i))}toArray(){return [this.x,this.y]}toIntArray(){return new Int32Array(this)}toFloatArray(){return new Float32Array(this)}*[Symbol.iterator](){yield this.x,yield this.y;}}class c{constructor(t=0,i=0,s=0,r=1){this.x=t,this.y=i,this.z=s,this.w=r;}static fromRotationMatrix(t){return (new c).setFromRotationMatrix(t)}static fromEuler(t){return (new c).setFromEuler(t)}static fromVec3Angle(t,i){return (new c).setFromVec3Angle(t,i)}static fromVec3s(t,i){return (new c).setFromVec3s(t,i)}static normalize(t){return t.clone().normalize()}static invert(t){return t.clone().normalize().invert()}static dotProduct(t,i){return t.x*i.x+t.y*i.y+t.z*i.z+t.w*i.w}static getAngle(t,i){return t.getAngle(i)}static multiply(t,i){return t.clone().multiply(i)}static slerp(t,i,s){return t.clone().slerp(i,s)}static equals(t,i,s=6){return t.equals(i,s)}clone(){return new c(this.x,this.y,this.z,this.w)}set(t,i,s,r){return this.x=t,this.y=i,this.z=s,this.w=r,this}setFromVec3s(t,i){t=t.clone().normalize(),i=i.clone().normalize();let s=t.dotProduct(i)+1;if(s<1e-6)s=0,Math.abs(t.x)>Math.abs(t.z)?(this.x=-t.y,this.y=t.x,this.z=0):(this.x=0,this.y=-t.z,this.z=t.y);else {const{x:s,y:r,z:e}=t.crossProduct(i);this.x=s,this.y=r,this.z=e;}return this.w=s,this.normalize()}setFromQ(t){return this.x=t.x,this.y=t.y,this.z=t.z,this.w=t.w,this}setFromRotationMatrix(t){if(16!==t.length)throw new Error("Matrix must contain 16 elements");const[i,s,r,e,h,a,n,x,o,y,_,u,l,c,z,m]=t,w=i+a+_;if(w>0){const t=.5/Math.sqrt(1+w);this.set((n-y)*t,(o-r)*t,(s-h)*t,.25/t);}else if(i>a&&i>_){const t=2*Math.sqrt(1+i-a-_);this.set(.25*t,(h+s)/t,(o+r)/t,(n-y)/t);}else if(a>_){const t=2*Math.sqrt(1+a-i-_);this.set((h+s)/t,.25*t,(y+n)/t,(o-r)/t);}else {const t=2*Math.sqrt(1+_-i-a);this.set((o+r)/t,(y+n)/t,.25*t,(s-h)/t);}return this}setFromEuler(t){const i=Math.cos(t.x/2),s=Math.cos(t.y/2),r=Math.cos(t.z/2),e=Math.sin(t.x/2),h=Math.sin(t.y/2),a=Math.sin(t.z/2);switch(t.order){case"XYZ":this.x=e*s*r+i*h*a,this.y=i*h*r-e*s*a,this.z=i*s*a+e*h*r,this.w=i*s*r-e*h*a;break;case"XZY":this.x=e*s*r-i*h*a,this.y=i*h*r-e*s*a,this.z=i*s*a+e*h*r,this.w=i*s*r+e*h*a;break;case"YXZ":this.x=e*s*r+i*h*a,this.y=i*h*r-e*s*a,this.z=i*s*a-e*h*r,this.w=i*s*r+e*h*a;break;case"YZX":this.x=e*s*r+i*h*a,this.y=i*h*r+e*s*a,this.z=i*s*a-e*h*r,this.w=i*s*r-e*h*a;break;case"ZXY":this.x=e*s*r-i*h*a,this.y=i*h*r+e*s*a,this.z=i*s*a+e*h*r,this.w=i*s*r-e*h*a;break;case"ZYX":this.x=e*s*r-i*h*a,this.y=i*h*r+e*s*a,this.z=i*s*a-e*h*r,this.w=i*s*r+e*h*a;}return this}setFromVec3Angle(t,i){const s=t.clone().normalize(),r=i/2,e=Math.sin(r);return this.x=s.x*e,this.y=s.y*e,this.z=s.z*e,this.w=Math.cos(r),this}getMagnitude(){return Math.sqrt(this.x*this.x+this.y*this.y+this.z*this.z+this.w*this.w)}normalize(){const t=this.getMagnitude();return t&&(this.x/=t,this.y/=t,this.z/=t,this.w/=t),this}invert(){return this.normalize(),this.x*=-1,this.y*=-1,this.z*=-1,this}dotProduct(t){return this.x*t.x+this.y*t.y+this.z*t.z+this.w*t.w}getAngle(t){return 2*Math.acos(Math.abs(n(this.dotProduct(t),-1,1)))}multiply(t){const{x:i,y:s,z:r,w:e}=this,{x:h,y:a,z:n,w:x}=t;return this.x=i*x+e*h+s*n-r*a,this.y=s*x+e*a+r*h-i*n,this.z=r*x+e*n+i*a-s*h,this.w=e*x-i*h-s*a-r*n,this}slerp(t,i){if(!(i=n(i,0,1)))return this;if(1===i)return this.setFromQ(t);const{x:s,y:r,z:e,w:h}=this,{x:a,y:x,z:o,w:y}=t,_=s*a+r*x+e*o+h*y;if(Math.abs(_)>=1)return this;const u=Math.acos(_),l=Math.sin(u);if(Math.abs(l)<1e-6)return this.x=.5*(s+a),this.y=.5*(r+x),this.z=.5*(e+o),this.w=.5*(h+y),this;const c=Math.sin((1-i)*u)/l,z=Math.sin(i*u)/l;return this.x=c*s+z*a,this.y=c*r+z*x,this.z=c*e+z*o,this.w=c*h+z*y,this}equals(t,i=6){return +this.x.toFixed(i)==+t.x.toFixed(i)&&+this.y.toFixed(i)==+t.y.toFixed(i)&&+this.z.toFixed(i)==+t.z.toFixed(i)&&+this.w.toFixed(i)==+t.w.toFixed(i)}}class z{constructor(t=0,i=0,s=0){this.length=3,this.x=t,this.y=i,this.z=s;}static multiplyByScalar(t,i){return new z(t.x*i,t.y*i,t.z*i)}static addScalar(t,i){return new z(t.x+i,t.y+i,t.z+i)}static normalize(t){return (new z).setFromVec3(t).normalize()}static add(t,i){return new z(t.x+i.x,t.y+i.y,t.z+i.z)}static substract(t,i){return new z(t.x-i.x,t.y-i.y,t.z-i.z)}static dotProduct(t,i){return t.x*i.x+t.y*i.y+t.z*i.z}static crossProduct(t,i){return new z(t.y*i.z-t.z*i.y,t.z*i.x-t.x*i.z,t.x*i.y-t.y*i.x)}static onVector(t,i){return t.clone().onVector(i)}static onPlane(t,i){return t.clone().onPlane(i)}static applyMat3(t,i){return t.clone().applyMat3(i)}static applyMat4(t,i){return t.clone().applyMat4(i)}static lerp(t,i,s){return t.clone().lerp(i,s)}static equals(t,i,s=6){return !!t&&t.equals(i,s)}static getDistance(t,i){const s=i.x-t.x,r=i.y-t.y,e=i.z-t.z;return Math.sqrt(s*s+r*r+e*e)}static getAngle(t,i){return t.getAngle(i)}clone(){return new z(this.x,this.y,this.z)}set(t,i,s){return this.x=t,this.y=i,this.z=s,this}setFromVec3(t){return this.x=t.x,this.y=t.y,this.z=t.z,this}multiplyByScalar(t){return this.x*=t,this.y*=t,this.z*=t,this}addScalar(t){return this.x+=t,this.y+=t,this.z+=t,this}getMagnitude(){return Math.sqrt(this.x*this.x+this.y*this.y+this.z*this.z)}getAngle(t){const i=this.getMagnitude()*t.getMagnitude();if(!i)return Math.PI/2;const s=this.dotProduct(t)/i;return Math.acos(n(s,-1,1))}normalize(){const t=this.getMagnitude();return t&&(this.x/=t,this.y/=t,this.z/=t),this}add(t){return this.x+=t.x,this.y+=t.y,this.z+=t.z,this}substract(t){return this.x-=t.x,this.y-=t.y,this.z-=t.z,this}dotProduct(t){return z.dotProduct(this,t)}crossProduct(t){return this.x=this.y*t.z-this.z*t.y,this.y=this.z*t.x-this.x*t.z,this.z=this.x*t.y-this.y*t.x,this}onVector(t){const i=this.getMagnitude();return i?t.clone().multiplyByScalar(t.clone().dotProduct(this)/(i*i)):this.set(0,0,0)}onPlane(t){return this.substract(this.clone().onVector(t))}applyMat3(t){if(9!==t.length)throw new Error("Matrix must contain 9 elements");const{x:i,y:s,z:r}=this,[e,h,a,n,x,o,y,_,u]=t;return this.x=i*e+s*n+r*y,this.y=i*h+s*x+r*_,this.z=i*a+s*o+r*u,this}applyMat4(t){if(16!==t.length)throw new Error("Matrix must contain 16 elements");const{x:i,y:s,z:r}=this,[e,h,a,n,x,o,y,_,u,l,c,z,m,w,d,M]=t,g=1/(i*n+s*_+r*z+M);return this.x=(i*e+s*x+r*u+m)*g,this.y=(i*h+s*o+r*l+w)*g,this.z=(i*a+s*y+r*c+d)*g,this}lerp(t,i){return this.x+=i*(t.x-this.x),this.y+=i*(t.y-this.y),this.z+=i*(t.z-this.z),this}equals(t,i=6){return !!t&&(+this.x.toFixed(i)==+t.x.toFixed(i)&&+this.y.toFixed(i)==+t.y.toFixed(i)&&+this.z.toFixed(i)==+t.z.toFixed(i))}toArray(){return [this.x,this.y,this.z]}toIntArray(){return new Int32Array(this)}toFloatArray(){return new Float32Array(this)}*[Symbol.iterator](){yield this.x,yield this.y,yield this.z;}}class m{constructor(){this.length=16,this._matrix=new Array(this.length),this._matrix[0]=1,this._matrix[1]=0,this._matrix[2]=0,this._matrix[3]=0,this._matrix[4]=0,this._matrix[5]=1,this._matrix[6]=0,this._matrix[7]=0,this._matrix[8]=0,this._matrix[9]=0,this._matrix[10]=1,this._matrix[11]=0,this._matrix[12]=0,this._matrix[13]=0,this._matrix[14]=0,this._matrix[15]=1;}get x_x(){return this._matrix[0]}get x_y(){return this._matrix[1]}get x_z(){return this._matrix[2]}get x_w(){return this._matrix[3]}get y_x(){return this._matrix[4]}get y_y(){return this._matrix[5]}get y_z(){return this._matrix[6]}get y_w(){return this._matrix[7]}get z_x(){return this._matrix[8]}get z_y(){return this._matrix[9]}get z_z(){return this._matrix[10]}get z_w(){return this._matrix[11]}get w_x(){return this._matrix[12]}get w_y(){return this._matrix[13]}get w_z(){return this._matrix[14]}get w_w(){return this._matrix[15]}static fromMat4(t){return (new m).setFromMat4(t)}static fromTRS(t,i,s){return (new m).setFromTRS(t,i,s)}static fromQuaternion(t){return (new m).setFromQuaternion(t)}static multiply(t,i){const s=new m;return s.set(t.x_x*i.x_x+t.x_y*i.y_x+t.x_z*i.z_x+t.x_w*i.w_x,t.x_x*i.x_y+t.x_y*i.y_y+t.x_z*i.z_y+t.x_w*i.w_y,t.x_x*i.x_z+t.x_y*i.y_z+t.x_z*i.z_z+t.x_w*i.w_z,t.x_x*i.x_w+t.x_y*i.y_w+t.x_z*i.z_w+t.x_w*i.w_w,t.y_x*i.x_x+t.y_y*i.y_x+t.y_z*i.z_x+t.y_w*i.w_x,t.y_x*i.x_y+t.y_y*i.y_y+t.y_z*i.z_y+t.y_w*i.w_y,t.y_x*i.x_z+t.y_y*i.y_z+t.y_z*i.z_z+t.y_w*i.w_z,t.y_x*i.x_w+t.y_y*i.y_w+t.y_z*i.z_w+t.y_w*i.w_w,t.z_x*i.x_x+t.z_y*i.y_x+t.z_z*i.z_x+t.z_w*i.w_x,t.z_x*i.x_y+t.z_y*i.y_y+t.z_z*i.z_y+t.z_w*i.w_y,t.z_x*i.x_z+t.z_y*i.y_z+t.z_z*i.z_z+t.z_w*i.w_z,t.z_x*i.x_w+t.z_y*i.y_w+t.z_z*i.z_w+t.z_w*i.w_w,t.w_x*i.x_x+t.w_y*i.y_x+t.w_z*i.z_x+t.w_w*i.w_x,t.w_x*i.x_y+t.w_y*i.y_y+t.w_z*i.z_y+t.w_w*i.w_y,t.w_x*i.x_z+t.w_y*i.y_z+t.w_z*i.z_z+t.w_w*i.w_z,t.w_x*i.x_w+t.w_y*i.y_w+t.w_z*i.z_w+t.w_w*i.w_w),s}static multiplyScalar(t,i){const s=new m;for(let r=0;r<this.length;r++)s._matrix[r]=t._matrix[r]*i;return s}static transpose(t){const i=new m;return i.set(t.x_x,t.y_x,t.z_x,t.w_x,t.x_y,t.y_y,t.z_y,t.w_y,t.x_z,t.y_z,t.z_z,t.w_z,t.x_w,t.y_w,t.z_w,t.w_w),i}static invert(t){const i=1/t.getDeterminant(),[s,r,e,h,a,n,x,o,y,_,u,l,c,z,w,d]=t._matrix;return (new m).set((x*l*z-o*u*z+o*_*w-n*l*w-x*_*d+n*u*d)*i,(h*u*z-e*l*z-h*_*w+r*l*w+e*_*d-r*u*d)*i,(e*o*z-h*x*z+h*n*w-r*o*w-e*n*d+r*x*d)*i,(h*x*_-e*o*_-h*n*u+r*o*u+e*n*l-r*x*l)*i,(o*u*c-x*l*c-o*y*w+a*l*w+x*y*d-a*u*d)*i,(e*l*c-h*u*c+h*y*w-s*l*w-e*y*d+s*u*d)*i,(h*x*c-e*o*c-h*a*w+s*o*w+e*a*d-s*x*d)*i,(e*o*y-h*x*y+h*a*u-s*o*u-e*a*l+s*x*l)*i,(n*l*c-o*_*c+o*y*z-a*l*z-n*y*d+a*_*d)*i,(h*_*c-r*l*c-h*y*z+s*l*z+r*y*d-s*_*d)*i,(r*o*c-h*n*c+h*a*z-s*o*z-r*a*d+s*n*d)*i,(h*n*y-r*o*y-h*a*_+s*o*_+r*a*l-s*n*l)*i,(x*_*c-n*u*c-x*y*z+a*u*z+n*y*w-a*_*w)*i,(r*u*c-e*_*c+e*y*z-s*u*z-r*y*w+s*_*w)*i,(e*n*c-r*x*c-e*a*z+s*x*z+r*a*w-s*n*w)*i,(r*x*y-e*n*y+e*a*_-s*x*_-r*a*u+s*n*u)*i)}static lookAt(t,i,s){const r=z.equals(t,i)?new z(0,0,1):z.substract(t,i).normalize();let e=z.crossProduct(s,r).normalize();e.getMagnitude()||(1===Math.abs(s.z)?r.x+=1e-5:r.z+=1e-5,r.normalize(),e=z.crossProduct(s,r).normalize());const h=z.crossProduct(r,e).normalize();return (new m).set(e.x,e.y,e.z,0,h.x,h.y,h.z,0,r.x,r.y,r.z,0,t.x,t.y,t.z,1)}static buildScale(t,i,s){return null!=i||(i=t),null!=s||(s=t),(new m).set(t,0,0,0,0,i,0,0,0,0,s,0,0,0,0,1)}static buildRotationX(t){const i=Math.cos(t),s=Math.sin(t);return (new m).set(1,0,0,0,0,i,s,0,0,-s,i,0,0,0,0,1)}static buildRotationY(t){const i=Math.cos(t),s=Math.sin(t);return (new m).set(i,0,-s,0,0,1,0,0,s,0,i,0,0,0,0,1)}static buildRotationZ(t){const i=Math.cos(t),s=Math.sin(t);return (new m).set(i,s,0,0,-s,i,0,0,0,0,1,0,0,0,0,1)}static buildTranslate(t,i,s){return (new m).set(1,0,0,0,0,1,0,0,0,0,1,0,t,i,s,1)}static buildOrthographic(t,i,s,r,e,h){return (new m).set(2/(r-s),0,0,0,0,2/(h-e),0,0,0,0,2/(t-i),0,(s+r)/(s-r),(e+h)/(e-h),(t+i)/(t-i),1)}static buildPerspective(t,i,...s){if(4===s.length){const[r,e,h,a]=s;return (new m).set(2*t/(e-r),0,0,0,0,2*t/(a-h),0,0,(e+r)/(e-r),(a+h)/(a-h),(t+i)/(t-i),-1,0,0,2*t*i/(t-i),0)}if(2===s.length){const[r,e]=s,h=Math.tan(.5*Math.PI-.5*r);return (new m).set(h/e,0,0,0,0,h,0,0,0,0,(t+i)/(t-i),-1,0,0,2*t*i/(t-i),0)}throw new Error("Incorrect args quantity")}static equals(t,i,s=6){return t.equals(i,s)}clone(){return (new m).set(this.x_x,this.x_y,this.x_z,this.x_w,this.y_x,this.y_y,this.y_z,this.y_w,this.z_x,this.z_y,this.z_z,this.z_w,this.w_x,this.w_y,this.w_z,this.w_w)}set(t,i,s,r,e,h,a,n,x,o,y,_,u,l,c,z){return this._matrix[0]=t,this._matrix[1]=i,this._matrix[2]=s,this._matrix[3]=r,this._matrix[4]=e,this._matrix[5]=h,this._matrix[6]=a,this._matrix[7]=n,this._matrix[8]=x,this._matrix[9]=o,this._matrix[10]=y,this._matrix[11]=_,this._matrix[12]=u,this._matrix[13]=l,this._matrix[14]=c,this._matrix[15]=z,this}reset(){return this._matrix[0]=1,this._matrix[1]=0,this._matrix[2]=0,this._matrix[3]=0,this._matrix[4]=0,this._matrix[5]=1,this._matrix[6]=0,this._matrix[7]=0,this._matrix[8]=0,this._matrix[9]=0,this._matrix[10]=1,this._matrix[11]=0,this._matrix[12]=0,this._matrix[13]=0,this._matrix[14]=0,this._matrix[15]=1,this}setFromMat4(t){for(let i=0;i<this.length;i++)this._matrix[i]=t._matrix[i];return this}setFromTRS(t,i,s){const r=2*i.x*i.x,e=2*i.y*i.x,h=2*i.z*i.x,a=2*i.y*i.y,n=2*i.z*i.y,x=2*i.z*i.z,o=2*i.x*i.w,y=2*i.y*i.w,_=2*i.z*i.w;return this.set((1-a-x)*s.x,(e+_)*s.x,(h-y)*s.x,0,(e-_)*s.y,(1-r-x)*s.y,(n+o)*s.y,0,(h+y)*s.z,(n-o)*s.z,(1-r-a)*s.z,0,t.x,t.y,t.z,1),this}setFromQuaternion(t){return this.setFromTRS(new z(0,0,0),t,new z(1,1,1))}multiply(t){const[i,s,r,e,h,a,n,x,o,y,_,u,l,c,z,m]=this._matrix,[w,d,M,g,p,b,F,f,P,q,S,A,R,B,V,E]=t._matrix;return this._matrix[0]=i*w+s*p+r*P+e*R,this._matrix[1]=i*d+s*b+r*q+e*B,this._matrix[2]=i*M+s*F+r*S+e*V,this._matrix[3]=i*g+s*f+r*A+e*E,this._matrix[4]=h*w+a*p+n*P+x*R,this._matrix[5]=h*d+a*b+n*q+x*B,this._matrix[6]=h*M+a*F+n*S+x*V,this._matrix[7]=h*g+a*f+n*A+x*E,this._matrix[8]=o*w+y*p+_*P+u*R,this._matrix[9]=o*d+y*b+_*q+u*B,this._matrix[10]=o*M+y*F+_*S+u*V,this._matrix[11]=o*g+y*f+_*A+u*E,this._matrix[12]=l*w+c*p+z*P+m*R,this._matrix[13]=l*d+c*b+z*q+m*B,this._matrix[14]=l*M+c*F+z*S+m*V,this._matrix[15]=l*g+c*f+z*A+m*E,this}multiplyScalar(t){for(let i=0;i<this.length;i++)this._matrix[i]*=t;return this}transpose(){const t=(new m).setFromMat4(this);return this.set(t.x_x,t.y_x,t.z_x,t.w_x,t.x_y,t.y_y,t.z_y,t.w_y,t.x_z,t.y_z,t.z_z,t.w_z,t.x_w,t.y_w,t.z_w,t.w_w),this}invert(){const t=1/this.getDeterminant(),[i,s,r,e,h,a,n,x,o,y,_,u,l,c,z,m]=this._matrix;return this.set((n*u*c-x*_*c+x*y*z-a*u*z-n*y*m+a*_*m)*t,(e*_*c-r*u*c-e*y*z+s*u*z+r*y*m-s*_*m)*t,(r*x*c-e*n*c+e*a*z-s*x*z-r*a*m+s*n*m)*t,(e*n*y-r*x*y-e*a*_+s*x*_+r*a*u-s*n*u)*t,(x*_*l-n*u*l-x*o*z+h*u*z+n*o*m-h*_*m)*t,(r*u*l-e*_*l+e*o*z-i*u*z-r*o*m+i*_*m)*t,(e*n*l-r*x*l-e*h*z+i*x*z+r*h*m-i*n*m)*t,(r*x*o-e*n*o+e*h*_-i*x*_-r*h*u+i*n*u)*t,(a*u*l-x*y*l+x*o*c-h*u*c-a*o*m+h*y*m)*t,(e*y*l-s*u*l-e*o*c+i*u*c+s*o*m-i*y*m)*t,(s*x*l-e*a*l+e*h*c-i*x*c-s*h*m+i*a*m)*t,(e*a*o-s*x*o-e*h*y+i*x*y+s*h*u-i*a*u)*t,(n*y*l-a*_*l-n*o*c+h*_*c+a*o*z-h*y*z)*t,(s*_*l-r*y*l+r*o*c-i*_*c-s*o*z+i*y*z)*t,(r*a*l-s*n*l-r*h*c+i*n*c+s*h*z-i*a*z)*t,(s*n*o-r*a*o+r*h*y-i*n*y-s*h*_+i*a*_)*t),this}getDeterminant(){const[t,i,s,r,e,h,a,n,x,o,y,_,u,l,c,z]=this._matrix;return r*a*o*u-s*n*o*u-r*h*y*u+i*n*y*u+s*h*_*u-i*a*_*u-r*a*x*l+s*n*x*l+r*e*y*l-t*n*y*l-s*e*_*l+t*a*_*l+r*h*x*c-i*n*x*c-r*e*o*c+t*n*o*c+i*e*_*c-t*h*_*c-s*h*x*z+i*a*x*z+s*e*o*z-t*a*o*z-i*e*y*z+t*h*y*z}getTRS(){const t=new z(this.w_x,this.w_y,this.w_z),i=this.getDeterminant(),s=new z(this.x_x,this.x_y,this.x_z).getMagnitude()*(i<0?-1:1),r=new z(this.y_x,this.y_y,this.y_z).getMagnitude(),e=new z(this.z_x,this.z_y,this.z_z).getMagnitude(),h=new z(s,r,e),a=(new m).set(this.x_x/s,this.x_y/s,this.x_z/s,0,this.y_x/r,this.y_y/r,this.y_z/r,0,this.z_x/e,this.z_y/e,this.z_z/e,0,0,0,0,1);return {t:t,r:c.fromRotationMatrix(a),s:h}}equals(t,i=6){for(let s=0;s<this.length;s++)if(+this._matrix[s].toFixed(i)!=+t._matrix[s].toFixed(i))return !1;return !0}applyScaling(t,i,s){const r=m.buildScale(t,i,s);return this.multiply(r)}applyTranslation(t,i,s){const r=m.buildTranslate(t,i,s);return this.multiply(r)}applyRotation(t,i){let s;switch(t){case"x":default:s=m.buildRotationX(i);break;case"y":s=m.buildRotationY(i);break;case"z":s=m.buildRotationZ(i);}return this.multiply(s)}toArray(){return this._matrix.slice()}toIntArray(){return new Int32Array(this)}toFloatArray(){return new Float32Array(this)}*[Symbol.iterator](){for(let t=0;t<this.length;t++)yield this._matrix[t];}}class g{constructor(t=0,i=0,s=0,r=1){this.length=4,this.x=t,this.y=i,this.z=s,this.w=r;}static fromVec3(t){return new g(t.x,t.y,t.z)}static multiplyByScalar(t,i){return new g(t.x*i,t.y*i,t.z*i,t.w*i)}static addScalar(t,i){return new g(t.x+i,t.y+i,t.z+i,t.w+i)}static normalize(t){return (new g).setFromVec4(t).normalize()}static add(t,i){return new g(t.x+i.x,t.y+i.y,t.z+i.z,t.w+i.w)}static substract(t,i){return new g(t.x-i.x,t.y-i.y,t.z-i.z,t.w-i.w)}static dotProduct(t,i){return t.x*i.x+t.y*i.y+t.z*i.z+t.w*i.w}static applyMat4(t,i){return t.clone().applyMat4(i)}static lerp(t,i,s){return t.clone().lerp(i,s)}static equals(t,i,s=6){return !!t&&t.equals(i,s)}clone(){return new g(this.x,this.y,this.z,this.w)}set(t,i,s,r){return this.x=t,this.y=i,this.z=s,this.w=r,this}setFromVec3(t){this.x=t.x,this.y=t.y,this.z=t.z,this.w=1;}setFromVec4(t){return this.x=t.x,this.y=t.y,this.z=t.z,this.w=t.w,this}multiplyByScalar(t){return this.x*=t,this.y*=t,this.z*=t,this.w*=t,this}addScalar(t){return this.x+=t,this.y+=t,this.z+=t,this.w+=t,this}getMagnitude(){return Math.sqrt(this.x*this.x+this.y*this.y+this.z*this.z+this.w*this.w)}normalize(){const t=this.getMagnitude();return t&&(this.x/=t,this.y/=t,this.z/=t,this.w/=t),this}add(t){return this.x+=t.x,this.y+=t.y,this.z+=t.z,this.w+=t.w,this}substract(t){return this.x-=t.x,this.y-=t.y,this.z-=t.z,this.w-=t.w,this}dotProduct(t){return this.x*t.x+this.y*t.y+this.z*t.z+this.w*t.w}applyMat4(t){if(16!==t.length)throw new Error("Matrix must contain 16 elements");const{x:i,y:s,z:r,w:e}=this,[h,a,n,x,o,y,_,u,l,c,z,m,w,d,M,g]=t;return this.x=i*h+s*o+r*l+e*w,this.y=i*a+s*y+r*c+e*d,this.z=i*n+s*_+r*z+e*M,this.w=i*x+s*u+r*m+e*g,this}lerp(t,i){return this.x+=i*(t.x-this.x),this.y+=i*(t.y-this.y),this.z+=i*(t.z-this.z),this.w+=i*(t.w-this.w),this}equals(t,i=6){return !!t&&(+this.x.toFixed(i)==+t.x.toFixed(i)&&+this.y.toFixed(i)==+t.y.toFixed(i)&&+this.z.toFixed(i)==+t.z.toFixed(i)&&+this.w.toFixed(i)==+t.w.toFixed(i))}toArray(){return [this.x,this.y,this.z,this.w]}toIntArray(){return new Int32Array(this)}toFloatArray(){return new Float32Array(this)}*[Symbol.iterator](){yield this.x,yield this.y,yield this.z,yield this.w;}}
 
 const shaderTypes = {
     FRAGMENT_SHADER: 0x8b30,
@@ -1828,7 +765,7 @@ class WGLProgramBase {
             gl.texParameteri(type, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
             gl.texParameteri(type, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         }
-        else if (isPowerOf2(width) && isPowerOf2(height)) {
+        else if (y(width) && y(height)) {
             gl.generateMipmap(type);
         }
         else {
@@ -1857,7 +794,7 @@ class WGLProgramBase {
         image.onload = function () {
             gl.bindTexture(gl.TEXTURE_2D, texture);
             gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image);
-            if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+            if (y(image.width) && y(image.height)) {
                 gl.generateMipmap(gl.TEXTURE_2D);
             }
             else {
@@ -2041,8 +978,8 @@ class Square {
 
 class SpriteAnimationData {
     constructor(options) {
-        this._dimensions = new Vec4();
-        this._sceneDimensions = new Vec3();
+        this._dimensions = new g();
+        this._sceneDimensions = new z();
         this._options = options;
         this._margin = Math.max(0, options.size[1], options.lineLength, options.onHoverLineLength);
         this._doubleMargin = this._margin * 2;
@@ -2090,7 +1027,7 @@ class SpriteAnimationData {
         }
         const { x: dx, y: dy, z: dz } = this._sceneDimensions;
         const t = elapsedTime;
-        const tempV2 = new Vec2();
+        const tempV2 = new u();
         for (let i = 0; i < this._length; i++) {
             const sx = this._iSizes[i * 3] / dx;
             const sy = this._iSizes[i * 3 + 1] / dy;
@@ -2137,12 +1074,12 @@ class SpriteAnimationData {
         else {
             z += cameraZ;
         }
-        const fov = degToRad(this._options.fov);
+        const fov = e(this._options.fov);
         const height = 2 * Math.tan(fov / 2) * Math.abs(z);
         const width = height / this._dimensions.y * this._dimensions.x;
         return out
             ? out.set(width + this._doubleMargin, height + this._doubleMargin)
-            : new Vec2(width + this._doubleMargin, height + this._doubleMargin);
+            : new u(width + this._doubleMargin, height + this._doubleMargin);
     }
     updateDimensions(dimensions) {
         const resChanged = !dimensions.equals(this._dimensions);
@@ -2164,13 +1101,13 @@ class SpriteAnimationData {
             if (oldColorsLength) {
                 newColors.set(oldColors.subarray(0, colorsIndex), 0);
             }
-            for (let i = colorsIndex; i < newColorsLength;) {
-                const colors = getRandomArrayElement(this._options.colors);
-                newColors[i++] = colors[0] / 255;
-                newColors[i++] = colors[1] / 255;
-                newColors[i++] = colors[2] / 255;
-                newColors[i++] = this._options.fixedOpacity
-                    || getRandomFloat(this._options.opacityMin ?? 0, 1);
+            for (let i$1 = colorsIndex; i$1 < newColorsLength;) {
+                const colors = s(this._options.colors);
+                newColors[i$1++] = colors[0] / 255;
+                newColors[i$1++] = colors[1] / 255;
+                newColors[i$1++] = colors[2] / 255;
+                newColors[i$1++] = this._options.fixedOpacity
+                    || i(this._options.opacityMin ?? 0, 1);
             }
             this._iColors = newColors.sort();
             const newSizesLength = length * 3;
@@ -2181,11 +1118,11 @@ class SpriteAnimationData {
             if (oldSizesLength) {
                 newSizes.set(oldSizes.subarray(0, sizesIndex), 0);
             }
-            for (let i = sizesIndex; i < newSizesLength;) {
-                const size = getRandomFloat(this._options.size[0], this._options.size[1]);
-                newSizes[i++] = size;
-                newSizes[i++] = size;
-                newSizes[i++] = 1;
+            for (let i$1 = sizesIndex; i$1 < newSizesLength;) {
+                const size = i(this._options.size[0], this._options.size[1]);
+                newSizes[i$1++] = size;
+                newSizes[i$1++] = size;
+                newSizes[i$1++] = 1;
             }
             this._iSizes = newSizes;
             const newBasePositionsLength = length * 3;
@@ -2196,8 +1133,8 @@ class SpriteAnimationData {
             if (oldBasePositionsLength) {
                 newBasePositions.set(oldBasePositions.subarray(0, basePositionsIndex), 0);
             }
-            for (let i = basePositionsIndex; i < newBasePositionsLength; i += 3) {
-                newBasePositions.set([getRandomFloat(0, 1), getRandomFloat(0, 1), getRandomFloat(-0.999, -0.001)], i);
+            for (let i$1 = basePositionsIndex; i$1 < newBasePositionsLength; i$1 += 3) {
+                newBasePositions.set([i(0, 1), i(0, 1), i(-0.999, -0.001)], i$1);
             }
             this._iBasePositions = newBasePositions;
             const newVelocitiesLength = length * 3;
@@ -2208,10 +1145,10 @@ class SpriteAnimationData {
             if (oldVelocitiesLength) {
                 newVelocities.set(oldVelocities.subarray(0, velocitiesIndex), 0);
             }
-            for (let i = velocitiesIndex; i < newVelocitiesLength;) {
-                newVelocities[i++] = getRandomFloat(this._options.velocityX[0], this._options.velocityX[1]);
-                newVelocities[i++] = getRandomFloat(this._options.velocityY[0], this._options.velocityY[1]);
-                newVelocities[i++] = getRandomFloat(this._options.velocityZ[0], this._options.velocityZ[1]);
+            for (let i$1 = velocitiesIndex; i$1 < newVelocitiesLength;) {
+                newVelocities[i$1++] = i(this._options.velocityX[0], this._options.velocityX[1]);
+                newVelocities[i$1++] = i(this._options.velocityY[0], this._options.velocityY[1]);
+                newVelocities[i$1++] = i(this._options.velocityZ[0], this._options.velocityZ[1]);
             }
             this._iVelocities = newVelocities;
             const newAngularVelocitiesLength = length;
@@ -2222,8 +1159,8 @@ class SpriteAnimationData {
             if (oldAngularVelocitiesLength) {
                 newAngularVelocities.set(oldAngularVelocities.subarray(0, angularVelocitiesIndex), 0);
             }
-            for (let i = angularVelocitiesIndex; i < newAngularVelocitiesLength; i++) {
-                newAngularVelocities[i] = getRandomFloat(this._options.angularVelocity[0], this._options.angularVelocity[1]);
+            for (let i$1 = angularVelocitiesIndex; i$1 < newAngularVelocitiesLength; i$1++) {
+                newAngularVelocities[i$1] = i(this._options.angularVelocity[0], this._options.angularVelocity[1]);
             }
             this._iAngularVelocities = newAngularVelocities;
             this._iCurrentPositions = new Float32Array(length * 3);
@@ -2232,8 +1169,8 @@ class SpriteAnimationData {
             for (let j = 0; j < length; j++) {
                 t = j % 2 ? j + 1 : j;
                 data[j] = {
-                    mat: new Mat4(),
-                    uv: new Vec2(this._options.textureMap[t % this._options.textureMap.length], this._options.textureMap[(t + 1) % this._options.textureMap.length]),
+                    mat: new m(),
+                    uv: new u(this._options.textureMap[t % this._options.textureMap.length], this._options.textureMap[(t + 1) % this._options.textureMap.length]),
                 };
             }
             this._iData = data;
@@ -2287,8 +1224,8 @@ class SpriteAnimationControl {
     gl_FragColor = color * vColor;
   }
 `;
-        this._lastResolution = new Vec2();
-        this._dimensions = new Vec4();
+        this._lastResolution = new u();
+        this._dimensions = new g();
         this._gl = gl;
         const finalOptions = new SpriteAnimationOptions(options);
         this._fov = finalOptions.fov;
@@ -2307,19 +1244,19 @@ class SpriteAnimationControl {
     prepareNextFrame(resolution, pointerPosition, pointerDown, elapsedTime) {
         const resChanged = !resolution.equals(this._lastResolution);
         if (resChanged) {
-            const near = Math.tan(0.5 * Math.PI - 0.5 * degToRad(this._fov)) * resolution.y / 2;
+            const near = Math.tan(0.5 * Math.PI - 0.5 * e(this._fov)) * resolution.y / 2;
             this.resize(resolution);
             this._program.setIntVecUniform("uResolution", resolution);
             this._lastResolution.setFromVec2(resolution);
             this._dimensions.set(resolution.x, resolution.y, this._depth, near);
             this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);
-            const viewMatrix = new Mat4().applyTranslation(0, 0, -near);
+            const viewMatrix = new m().applyTranslation(0, 0, -near);
             this._program.setFloatMatUniform("uView", viewMatrix);
             const outerSize = this._data.sceneDimensions;
-            const modelMatrix = new Mat4()
+            const modelMatrix = new m()
                 .applyScaling(outerSize.x, outerSize.y, this._depth);
             this._program.setFloatMatUniform("uModel", modelMatrix);
-            const projectionMatrix = Mat4.buildPerspective(near, near + this._depth, -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
+            const projectionMatrix = m.buildPerspective(near, near + this._depth, -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
             this._program.setFloatMatUniform("uProjection", projectionMatrix);
             this._program.setInstancedBufferAttribute("aColorInst", this._data.iColor, { vectorSize: 4, vectorNumber: 1, divisor: 1, usage: "static" });
             this._program.setInstancedBufferAttribute("aMatInst", this._data.iMatrix, { vectorSize: 4, vectorNumber: 4, divisor: 1, usage: "dynamic" });
@@ -2355,8 +1292,8 @@ function getRandomUuid() {
 
 class WGLAnimation {
     constructor(container, options, controlType) {
-        this._resolution = new Vec2();
-        this._pointerPosition = new Vec2();
+        this._resolution = new u();
+        this._pointerPosition = new u();
         this._animationStartTimeStamp = 0;
         this._lastFrameTimeStamp = 0;
         this._lastPreparationTime = 0;
