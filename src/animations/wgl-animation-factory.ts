@@ -1,6 +1,6 @@
 import { IAnimation } from "./wgl-animation-interfaces";
 import { SpriteAnimationControl } from "./sprite-animation/sprite-animation-control";
-import { SpriteAnimationOptions } from "./sprite-animation/sprite-animation-options";
+import { defaultSpriteAnimationOptions } from "./sprite-animation/sprite-animation-options";
 import { WGLAnimation } from "./wgl-animation";
 
 export class WGLAnimationFactory {
@@ -15,7 +15,7 @@ export class WGLAnimationFactory {
       throw new Error("Container is not positioned");
     }
  
-    const finalOptions = new SpriteAnimationOptions(options); 
+    const finalOptions = Object.assign({}, defaultSpriteAnimationOptions, options); 
     return new WGLAnimation(container as HTMLElement, finalOptions, SpriteAnimationControl);
   }
 }

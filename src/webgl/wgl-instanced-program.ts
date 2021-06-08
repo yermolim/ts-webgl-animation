@@ -2,6 +2,9 @@ import { BufferInfoOptions, BufferInfo } from "./program-data/attributes";
 import { TypedArray } from "./program-data/common";
 import { WGLStandardProgram } from "./wgl-standard-program";
 
+/**
+ * WebGL program wrapper for drawing instanced graphics
+ */
 export class WGLInstancedProgram extends WGLStandardProgram {
   private readonly _extInstanced: ANGLE_instanced_arrays;
 

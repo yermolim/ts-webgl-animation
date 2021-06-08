@@ -1,6 +1,9 @@
 /* eslint-disable no-bitwise */
 import { WGLProgramBase } from "./wgl-program-base";
 
+/**
+ * WebGL program wrapper for drawing non-instanced graphics
+ */
 export class WGLStandardProgram extends WGLProgramBase {
   get triangleCount(): number {
     return this._triangleCount;

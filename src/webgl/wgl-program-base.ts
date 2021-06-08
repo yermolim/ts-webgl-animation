@@ -1,4 +1,5 @@
 import { Vec, Mat, isPowerOf2 } from "mathador";
+
 import { Attribute, ConstantInfo, BufferInfoOptions, 
   BufferInfo, IndexInfo } from "./program-data/attributes";
 import { shaderTypes, ShaderType, TypedArray, numberTypes, 
@@ -9,6 +10,9 @@ import { Uniform, UniformIntInfo, UniformIntArrayInfo,
   UniformFloatInfo, UniformFloatArrayInfo, TextureInfo, 
   TextureArrayInfo } from "./program-data/uniforms";
 
+/**
+ * Abstract base class for WebGL program wrappers
+ */
 export abstract class WGLProgramBase {  
   protected readonly _extIndexed: OES_element_index_uint;
 

@@ -1,6 +1,8 @@
-import { IWGLAnimationControl, AnimationOptions } from "../wgl-animation-interfaces";
 import { Vec2, Vec4, Mat4, degToRad } from "mathador";
+
+import { IWGLAnimationControl, AnimationOptions } from "../wgl-animation-interfaces";
 import { WGLInstancedProgram } from "../../webgl/wgl-instanced-program";
+
 import { SpriteAnimationData } from "./sprite-animation-data";
 import { SpriteAnimationOptions } from "./sprite-animation-options";
 
@@ -15,48 +17,48 @@ vec3 billboard(vec2 offset, mat4 view) {
 
 export class SpriteAnimationControl implements IWGLAnimationControl {
   private readonly _vertexShader = `
-  #pragma vscode_glsllint_stage : vert
+    #pragma vscode_glsllint_stage : vert
 
-  attribute vec4 aColorInst;
-  attribute vec3 aPosition;
-  attribute vec2 aUv;
-  attribute vec2 aUvInst;
-  attribute mat4 aMatInst;
+    attribute vec4 aColorInst;
+    attribute vec3 aPosition;
+    attribute vec2 aUv;
+    attribute vec2 aUvInst;
+    attribute mat4 aMatInst;
 
-  uniform int uTexSize;
-  uniform vec2 uResolution;
-  uniform mat4 uModel;
-  uniform mat4 uView;
-  uniform mat4 uProjection;
-  
-  varying vec4 vColor;
-  varying vec2 vUv;
+    uniform int uTexSize;
+    uniform vec2 uResolution;
+    uniform mat4 uModel;
+    uniform mat4 uView;
+    uniform mat4 uProjection;
+    
+    varying vec4 vColor;
+    varying vec2 vUv;
 
-  void main() {
-    vColor = aColorInst;
+    void main() {
+      vColor = aColorInst;
 
-    float texSize = float(uTexSize);
-    vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
+      float texSize = float(uTexSize);
+      vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
 
-    gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
-  }
-`;
+      gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
+    }
+  `;
 
   private readonly _fragmentShader = `
-  #pragma vscode_glsllint_stage : frag  
+    #pragma vscode_glsllint_stage : frag  
 
-  precision highp float;
+    precision highp float;
 
-  uniform sampler2D uTex;
+    uniform sampler2D uTex;
 
-  varying vec4 vColor;
-  varying vec2 vUv;
+    varying vec4 vColor;
+    varying vec2 vUv;
 
-  void main() {
-    vec4 color = texture2D(uTex, vUv);
-    gl_FragColor = color * vColor;
-  }
-`;
+    void main() {
+      vec4 color = texture2D(uTex, vUv);
+      gl_FragColor = color * vColor;
+    }
+  `;
 
   private _gl: WebGLRenderingContext;
   private _program: WGLInstancedProgram;
@@ -69,8 +71,12 @@ export class SpriteAnimationControl implements IWGLAnimationControl {
   private _data: SpriteAnimationData;
 
   constructor(gl: WebGLRenderingContext, options: AnimationOptions) {
-    this._gl = gl;    
-    const finalOptions = new SpriteAnimationOptions(options);   
+    this._gl = gl;
+
+    const finalOptions = options as SpriteAnimationOptions; 
+    if (!finalOptions.textureUrl) {
+      throw new Error("Texture URL not defined");
+    }  
 
     this._fov = finalOptions.fov;
     this._depth = finalOptions.depth;
@@ -79,9 +85,6 @@ export class SpriteAnimationControl implements IWGLAnimationControl {
     this._data = new SpriteAnimationData(finalOptions);
 
     // set uniforms
-    if (!finalOptions.textureUrl) {
-      throw new Error("Texture URL not defined");
-    }
     this._program.loadAndSet2dTexture("uTex", finalOptions.textureUrl);    
     this._program.setIntUniform("uTexSize", finalOptions.textureSize || 1); // atlas row tile count
   
@@ -93,7 +96,7 @@ export class SpriteAnimationControl implements IWGLAnimationControl {
   prepareNextFrame(resolution: Vec2, pointerPosition: Vec2, pointerDown: boolean, elapsedTime: number) {
     const resChanged = !resolution.equals(this._lastResolution);
     if (resChanged) {   
-    // TODO: move to options
+      // TODO: move to options
       const near = Math.tan(0.5 * Math.PI - 0.5 * degToRad(this._fov)) * resolution.y / 2;
 
       //update dimensions
@@ -123,7 +126,7 @@ export class SpriteAnimationControl implements IWGLAnimationControl {
 
       //#region buffers
       this._program.setInstancedBufferAttribute("aColorInst", this._data.iColor, 
-        {vectorSize: 4, vectorNumber: 1, divisor: 1, usage: "static"}); 
+        {vectorSize: 4, vectorNumber: 1, divisor: 1, usage: "dynamic"}); 
       this._program.setInstancedBufferAttribute("aMatInst", this._data.iMatrix, 
         {vectorSize: 4, vectorNumber: 4, divisor: 1, usage: "dynamic"});
       this._program.setInstancedBufferAttribute("aUvInst", this._data.iUv,
@@ -144,6 +147,7 @@ export class SpriteAnimationControl implements IWGLAnimationControl {
     //#endregion
     } else {
       this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);
+      this._program.updateBufferAttribute("aColorInst", this._data.iColor, 0);
       this._program.updateBufferAttribute("aMatInst", this._data.iMatrix, 0);
       this._program.updateBufferAttribute("aUvInst", this._data.iUv, 0);
     }

@@ -1,8 +1,16 @@
 import { Vec2, Vec3, Vec4, Mat4, degToRad,
   getRandomArrayElement, getRandomFloat } from "mathador";
+
 import { Primitive } from "../../webgl/primitives/primitive";
 import { Square } from "../../webgl/primitives/square";
+
 import { SpriteAnimationOptions } from "./sprite-animation-options";
+
+interface SpriteData {
+  mat: Mat4;
+  uv: Float32Array;
+  color: Float32Array;
+}
 
 export class SpriteAnimationData {
   private _primitive: Primitive;
@@ -24,33 +32,54 @@ export class SpriteAnimationData {
     return this._length;
   }
 
-  private _iColors: Float32Array; // length x4
-  get iColor(): Float32Array {
-    return this._iColors;
-  }
-
   private _iSizes: Float32Array; // length x3
   private _iBasePositions: Float32Array; // length x3
   private _iVelocities: Float32Array; // length x3
   private _iAngularVelocities: Float32Array; // length
   private _iCurrentPositions: Float32Array; // length x3
-  private _iData: {mat: Mat4; uv: Vec2}[]; 
-  private _iDataSorted: {mat: Mat4; uv: Vec2}[]; 
+  private _iData: SpriteData[]; 
+  private _iDataSorted: SpriteData[]; 
+
+  private _iMatrix: Float32Array;
   get iMatrix(): Float32Array {  
     // TODO: optimize  
-    const matrices = new Float32Array(this._length * 16);
+    const length = this._length * 16;
+    if (!this._iMatrix || this._iMatrix.length !== length) {
+      this._iMatrix = new Float32Array(length);
+    }
+    const matrices = this._iMatrix;
     for (let i = 0; i < this._length; i++) {
       matrices.set(this._iDataSorted[i].mat.toFloatArray(), i * 16);
     }
     return matrices;
   }
+
+  private _iUv: Float32Array;
   get iUv(): Float32Array {  
     // TODO: optimize  
-    const uvs = new Float32Array(this._length * 2);
+    const length = this._length * 2;
+    if (!this._iUv || this._iUv.length !== length) {
+      this._iUv = new Float32Array(length);
+    }
+    const uvs = this._iUv;
     for (let i = 0; i < this._length; i++) {
-      uvs.set(this._iDataSorted[i].uv.toFloatArray(), i * 2);
+      uvs.set(this._iDataSorted[i].uv, i * 2);
     }
     return uvs;
+  }
+
+  private _iColor: Float32Array;
+  get iColor(): Float32Array {
+    // TODO: optimize  
+    const length = this._length * 4;
+    if (!this._iColor || this._iColor.length !== length) {
+      this._iColor = new Float32Array(length);
+    }
+    const colors = this._iColor;
+    for (let i = 0; i < this._length; i++) {
+      colors.set(this._iDataSorted[i].color, i * 4);
+    }
+    return colors;
   }
 
   private _options: SpriteAnimationOptions;
@@ -176,26 +205,10 @@ export class SpriteAnimationData {
     const length = Math.floor(this._options.fixedNumber 
       ?? this._options.density * this._sceneDimensions.x * this._sceneDimensions.y);
     if (this._length !== length) {
-      // update instance arrays
+      const oldLength = this._length || 0;
+      const oldData = this._iData || [];
 
-      // colors
-      const newColorsLength = length * 4;
-      const newColors = new Float32Array(newColorsLength);
-      const oldColors = this._iColors;
-      const oldColorsLength = oldColors?.length || 0;
-      const colorsIndex = Math.min(newColorsLength, oldColorsLength);
-      if (oldColorsLength) {
-        newColors.set(oldColors.subarray(0, colorsIndex), 0);
-      }
-      for (let i = colorsIndex; i < newColorsLength;) {
-        const colors = getRandomArrayElement(this._options.colors);
-        newColors[i++] = colors[0] / 255;
-        newColors[i++] = colors[1] / 255;
-        newColors[i++] = colors[2] / 255;
-        newColors[i++] = this._options.fixedOpacity 
-          || getRandomFloat(this._options.opacityMin ?? 0, 1);
-      }        
-      this._iColors = newColors.sort();
+      // update instance arrays
       
       // sizes
       const newSizesLength = length * 3;
@@ -262,18 +275,43 @@ export class SpriteAnimationData {
 
       this._iCurrentPositions = new Float32Array(length * 3);
 
-      const data: {mat: Mat4; uv: Vec2}[] = new Array(length);
+
+      const data = new Array<SpriteData>(length);      
       let t: number;
-      for (let j = 0; j < length; j++) {
-        t = j % 2 ? j + 1 : j;
-        data[j] = {
-          mat: new Mat4(),
-          uv: new Vec2(
-            this._options.textureMap[t % this._options.textureMap.length],
-            this._options.textureMap[(t + 1) % this._options.textureMap.length],
-          ),
-        };
+      // copy old data to new array
+      const dataCopyLength = Math.min(length, oldLength);
+      for (let j = 0; j < dataCopyLength; j++) {
+        data[j] = oldData[j];
       }
+      if (dataCopyLength < length) {
+        // fill the rest of new data array
+        let uv: Float32Array;
+        let color: Float32Array;
+        let randomColor: number[];
+        for (let j = dataCopyLength; j < length; j++) {
+          t = j % 2 
+            ? j + 1 
+            : j; 
+
+          uv = new Float32Array(2);
+          uv[0] = this._options.textureMap[t % this._options.textureMap.length];
+          uv[1] = this._options.textureMap[(t + 1) % this._options.textureMap.length];
+          
+          color = new Float32Array(4);
+          randomColor = getRandomArrayElement(this._options.colors);
+          color[0] = randomColor[0] / 255;
+          color[1] = randomColor[1] / 255;
+          color[2] = randomColor[2] / 255;
+          color[3] = this._options.fixedOpacity || getRandomFloat(this._options.opacityMin ?? 0, 1);
+          
+          data[j] = {
+            mat: new Mat4(),
+            uv,
+            color,
+          };
+        }
+      }
+
       this._iData = data;
       this._iDataSorted = data.slice();
 

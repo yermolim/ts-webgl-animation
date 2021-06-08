@@ -1,49 +1,8 @@
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
     typeof define === 'function' && define.amd ? define(['exports'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.wglAnim = {}));
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.WglAnim = {}));
 }(this, (function (exports) { 'use strict';
-
-    class SpriteAnimationOptions {
-        constructor(item = null) {
-            this.expectedFps = 60;
-            this.fixedNumber = null;
-            this.density = 0.0002;
-            this.depth = 1000;
-            this.fov = 120;
-            this.size = [16, 64];
-            this.velocityX = [-0.1, 0.1];
-            this.velocityY = [-0.1, 0.1];
-            this.velocityZ = [-0.1, 0.1];
-            this.angularVelocity = [-0.001, 0.001];
-            this.blur = 1;
-            this.colors = [[255, 255, 255], [255, 244, 193], [250, 239, 219]];
-            this.fixedOpacity = null;
-            this.opacityMin = 0;
-            this.opacityStep = 0;
-            this.drawLines = true;
-            this.lineColor = [113, 120, 146];
-            this.lineLength = 150;
-            this.lineWidth = 2;
-            this.onClick = null;
-            this.onHover = null;
-            this.onClickCreateN = 10;
-            this.onClickMoveR = 200;
-            this.onHoverMoveR = 50;
-            this.onHoverLineLength = 150;
-            this.textureUrl = "animals-white.png";
-            this.textureSize = 8;
-            this.textureMap = [
-                0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0,
-                0, 1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1,
-                0, 2, 1, 2, 2, 2, 3, 2, 4, 2, 5, 2, 6, 2, 7, 2,
-                0, 3, 1, 3, 2, 3, 3, 3, 4, 3, 5, 3,
-            ];
-            if (item) {
-                Object.assign(this, item);
-            }
-        }
-    }
 
     function i(t,i){return Math.random()*(i-t)+t}function s(t){return t[Math.floor(Math.random()*t.length)]}function e(t){return t*Math.PI/180}function n(t,i,s){return Math.max(i,Math.min(t,s))}function y(t){return 0==(t&t-1)}class u{constructor(t=0,i=0){this.length=2,this.x=t,this.y=i;}static multiplyByScalar(t,i){return new u(t.x*i,t.y*i)}static addScalar(t,i){return new u(t.x+i,t.y+i)}static normalize(t){return (new u).setFromVec2(t).normalize()}static add(t,i){return new u(t.x+i.x,t.y+i.y)}static substract(t,i){return new u(t.x-i.x,t.y-i.y)}static dotProduct(t,i){return t.x*i.x+t.y*i.y}static applyMat3(t,i){return t.clone().applyMat3(i)}static lerp(t,i,s){return t.clone().lerp(i,s)}static rotate(t,i,s){return t.clone().rotate(i,s)}static equals(t,i,s=6){return !!t&&t.equals(i)}static getDistance(t,i){const s=i.x-t.x,r=i.y-t.y;return Math.sqrt(s*s+r*r)}static minMax(...t){return {min:new u(Math.min(...t.map((t=>t.x))),Math.min(...t.map((t=>t.y)))),max:new u(Math.max(...t.map((t=>t.x))),Math.max(...t.map((t=>t.y))))}}clone(){return new u(this.x,this.y)}set(t,i){return this.x=t,this.y=i,this}setFromVec2(t){return this.x=t.x,this.y=t.y,this}multiplyByScalar(t){return this.x*=t,this.y*=t,this}addScalar(t){return this.x+=t,this.y+=t,this}getMagnitude(){return Math.sqrt(this.x*this.x+this.y*this.y)}normalize(){const t=this.getMagnitude();return t&&(this.x/=t,this.y/=t),this}add(t){return this.x+=t.x,this.y+=t.y,this}substract(t){return this.x-=t.x,this.y-=t.y,this}dotProduct(t){return u.dotProduct(this,t)}applyMat3(t){if(9!==t.length)throw new Error("Matrix must contain 9 elements");const{x:i,y:s}=this,[r,e,,h,a,,n,x]=t;return this.x=i*r+s*h+n,this.y=i*e+s*a+x,this}lerp(t,i){return this.x+=i*(t.x-this.x),this.y+=i*(t.y-this.y),this}rotate(t,i){const s=Math.sin(i),r=Math.cos(i),e=this.x-t.x,h=this.y-t.y;return this.x=e*r-h*s+t.x,this.y=e*s+h*r+t.y,this}equals(t,i=6){return !!t&&(+this.x.toFixed(i)==+t.x.toFixed(i)&&+this.y.toFixed(i)==+t.y.toFixed(i))}toArray(){return [this.x,this.y]}toIntArray(){return new Int32Array(this)}toFloatArray(){return new Float32Array(this)}*[Symbol.iterator](){yield this.x,yield this.y;}}class c{constructor(t=0,i=0,s=0,r=1){this.x=t,this.y=i,this.z=s,this.w=r;}static fromRotationMatrix(t){return (new c).setFromRotationMatrix(t)}static fromEuler(t){return (new c).setFromEuler(t)}static fromVec3Angle(t,i){return (new c).setFromVec3Angle(t,i)}static fromVec3s(t,i){return (new c).setFromVec3s(t,i)}static normalize(t){return t.clone().normalize()}static invert(t){return t.clone().normalize().invert()}static dotProduct(t,i){return t.x*i.x+t.y*i.y+t.z*i.z+t.w*i.w}static getAngle(t,i){return t.getAngle(i)}static multiply(t,i){return t.clone().multiply(i)}static slerp(t,i,s){return t.clone().slerp(i,s)}static equals(t,i,s=6){return t.equals(i,s)}clone(){return new c(this.x,this.y,this.z,this.w)}set(t,i,s,r){return this.x=t,this.y=i,this.z=s,this.w=r,this}setFromVec3s(t,i){t=t.clone().normalize(),i=i.clone().normalize();let s=t.dotProduct(i)+1;if(s<1e-6)s=0,Math.abs(t.x)>Math.abs(t.z)?(this.x=-t.y,this.y=t.x,this.z=0):(this.x=0,this.y=-t.z,this.z=t.y);else {const{x:s,y:r,z:e}=t.crossProduct(i);this.x=s,this.y=r,this.z=e;}return this.w=s,this.normalize()}setFromQ(t){return this.x=t.x,this.y=t.y,this.z=t.z,this.w=t.w,this}setFromRotationMatrix(t){if(16!==t.length)throw new Error("Matrix must contain 16 elements");const[i,s,r,e,h,a,n,x,o,y,_,u,l,c,z,m]=t,w=i+a+_;if(w>0){const t=.5/Math.sqrt(1+w);this.set((n-y)*t,(o-r)*t,(s-h)*t,.25/t);}else if(i>a&&i>_){const t=2*Math.sqrt(1+i-a-_);this.set(.25*t,(h+s)/t,(o+r)/t,(n-y)/t);}else if(a>_){const t=2*Math.sqrt(1+a-i-_);this.set((h+s)/t,.25*t,(y+n)/t,(o-r)/t);}else {const t=2*Math.sqrt(1+_-i-a);this.set((o+r)/t,(y+n)/t,.25*t,(s-h)/t);}return this}setFromEuler(t){const i=Math.cos(t.x/2),s=Math.cos(t.y/2),r=Math.cos(t.z/2),e=Math.sin(t.x/2),h=Math.sin(t.y/2),a=Math.sin(t.z/2);switch(t.order){case"XYZ":this.x=e*s*r+i*h*a,this.y=i*h*r-e*s*a,this.z=i*s*a+e*h*r,this.w=i*s*r-e*h*a;break;case"XZY":this.x=e*s*r-i*h*a,this.y=i*h*r-e*s*a,this.z=i*s*a+e*h*r,this.w=i*s*r+e*h*a;break;case"YXZ":this.x=e*s*r+i*h*a,this.y=i*h*r-e*s*a,this.z=i*s*a-e*h*r,this.w=i*s*r+e*h*a;break;case"YZX":this.x=e*s*r+i*h*a,this.y=i*h*r+e*s*a,this.z=i*s*a-e*h*r,this.w=i*s*r-e*h*a;break;case"ZXY":this.x=e*s*r-i*h*a,this.y=i*h*r+e*s*a,this.z=i*s*a+e*h*r,this.w=i*s*r-e*h*a;break;case"ZYX":this.x=e*s*r-i*h*a,this.y=i*h*r+e*s*a,this.z=i*s*a-e*h*r,this.w=i*s*r+e*h*a;}return this}setFromVec3Angle(t,i){const s=t.clone().normalize(),r=i/2,e=Math.sin(r);return this.x=s.x*e,this.y=s.y*e,this.z=s.z*e,this.w=Math.cos(r),this}getMagnitude(){return Math.sqrt(this.x*this.x+this.y*this.y+this.z*this.z+this.w*this.w)}normalize(){const t=this.getMagnitude();return t&&(this.x/=t,this.y/=t,this.z/=t,this.w/=t),this}invert(){return this.normalize(),this.x*=-1,this.y*=-1,this.z*=-1,this}dotProduct(t){return this.x*t.x+this.y*t.y+this.z*t.z+this.w*t.w}getAngle(t){return 2*Math.acos(Math.abs(n(this.dotProduct(t),-1,1)))}multiply(t){const{x:i,y:s,z:r,w:e}=this,{x:h,y:a,z:n,w:x}=t;return this.x=i*x+e*h+s*n-r*a,this.y=s*x+e*a+r*h-i*n,this.z=r*x+e*n+i*a-s*h,this.w=e*x-i*h-s*a-r*n,this}slerp(t,i){if(!(i=n(i,0,1)))return this;if(1===i)return this.setFromQ(t);const{x:s,y:r,z:e,w:h}=this,{x:a,y:x,z:o,w:y}=t,_=s*a+r*x+e*o+h*y;if(Math.abs(_)>=1)return this;const u=Math.acos(_),l=Math.sin(u);if(Math.abs(l)<1e-6)return this.x=.5*(s+a),this.y=.5*(r+x),this.z=.5*(e+o),this.w=.5*(h+y),this;const c=Math.sin((1-i)*u)/l,z=Math.sin(i*u)/l;return this.x=c*s+z*a,this.y=c*r+z*x,this.z=c*e+z*o,this.w=c*h+z*y,this}equals(t,i=6){return +this.x.toFixed(i)==+t.x.toFixed(i)&&+this.y.toFixed(i)==+t.y.toFixed(i)&&+this.z.toFixed(i)==+t.z.toFixed(i)&&+this.w.toFixed(i)==+t.w.toFixed(i)}}class z{constructor(t=0,i=0,s=0){this.length=3,this.x=t,this.y=i,this.z=s;}static multiplyByScalar(t,i){return new z(t.x*i,t.y*i,t.z*i)}static addScalar(t,i){return new z(t.x+i,t.y+i,t.z+i)}static normalize(t){return (new z).setFromVec3(t).normalize()}static add(t,i){return new z(t.x+i.x,t.y+i.y,t.z+i.z)}static substract(t,i){return new z(t.x-i.x,t.y-i.y,t.z-i.z)}static dotProduct(t,i){return t.x*i.x+t.y*i.y+t.z*i.z}static crossProduct(t,i){return new z(t.y*i.z-t.z*i.y,t.z*i.x-t.x*i.z,t.x*i.y-t.y*i.x)}static onVector(t,i){return t.clone().onVector(i)}static onPlane(t,i){return t.clone().onPlane(i)}static applyMat3(t,i){return t.clone().applyMat3(i)}static applyMat4(t,i){return t.clone().applyMat4(i)}static lerp(t,i,s){return t.clone().lerp(i,s)}static equals(t,i,s=6){return !!t&&t.equals(i,s)}static getDistance(t,i){const s=i.x-t.x,r=i.y-t.y,e=i.z-t.z;return Math.sqrt(s*s+r*r+e*e)}static getAngle(t,i){return t.getAngle(i)}clone(){return new z(this.x,this.y,this.z)}set(t,i,s){return this.x=t,this.y=i,this.z=s,this}setFromVec3(t){return this.x=t.x,this.y=t.y,this.z=t.z,this}multiplyByScalar(t){return this.x*=t,this.y*=t,this.z*=t,this}addScalar(t){return this.x+=t,this.y+=t,this.z+=t,this}getMagnitude(){return Math.sqrt(this.x*this.x+this.y*this.y+this.z*this.z)}getAngle(t){const i=this.getMagnitude()*t.getMagnitude();if(!i)return Math.PI/2;const s=this.dotProduct(t)/i;return Math.acos(n(s,-1,1))}normalize(){const t=this.getMagnitude();return t&&(this.x/=t,this.y/=t,this.z/=t),this}add(t){return this.x+=t.x,this.y+=t.y,this.z+=t.z,this}substract(t){return this.x-=t.x,this.y-=t.y,this.z-=t.z,this}dotProduct(t){return z.dotProduct(this,t)}crossProduct(t){return this.x=this.y*t.z-this.z*t.y,this.y=this.z*t.x-this.x*t.z,this.z=this.x*t.y-this.y*t.x,this}onVector(t){const i=this.getMagnitude();return i?t.clone().multiplyByScalar(t.clone().dotProduct(this)/(i*i)):this.set(0,0,0)}onPlane(t){return this.substract(this.clone().onVector(t))}applyMat3(t){if(9!==t.length)throw new Error("Matrix must contain 9 elements");const{x:i,y:s,z:r}=this,[e,h,a,n,x,o,y,_,u]=t;return this.x=i*e+s*n+r*y,this.y=i*h+s*x+r*_,this.z=i*a+s*o+r*u,this}applyMat4(t){if(16!==t.length)throw new Error("Matrix must contain 16 elements");const{x:i,y:s,z:r}=this,[e,h,a,n,x,o,y,_,u,l,c,z,m,w,d,M]=t,g=1/(i*n+s*_+r*z+M);return this.x=(i*e+s*x+r*u+m)*g,this.y=(i*h+s*o+r*l+w)*g,this.z=(i*a+s*y+r*c+d)*g,this}lerp(t,i){return this.x+=i*(t.x-this.x),this.y+=i*(t.y-this.y),this.z+=i*(t.z-this.z),this}equals(t,i=6){return !!t&&(+this.x.toFixed(i)==+t.x.toFixed(i)&&+this.y.toFixed(i)==+t.y.toFixed(i)&&+this.z.toFixed(i)==+t.z.toFixed(i))}toArray(){return [this.x,this.y,this.z]}toIntArray(){return new Int32Array(this)}toFloatArray(){return new Float32Array(this)}*[Symbol.iterator](){yield this.x,yield this.y,yield this.z;}}class m{constructor(){this.length=16,this._matrix=new Array(this.length),this._matrix[0]=1,this._matrix[1]=0,this._matrix[2]=0,this._matrix[3]=0,this._matrix[4]=0,this._matrix[5]=1,this._matrix[6]=0,this._matrix[7]=0,this._matrix[8]=0,this._matrix[9]=0,this._matrix[10]=1,this._matrix[11]=0,this._matrix[12]=0,this._matrix[13]=0,this._matrix[14]=0,this._matrix[15]=1;}get x_x(){return this._matrix[0]}get x_y(){return this._matrix[1]}get x_z(){return this._matrix[2]}get x_w(){return this._matrix[3]}get y_x(){return this._matrix[4]}get y_y(){return this._matrix[5]}get y_z(){return this._matrix[6]}get y_w(){return this._matrix[7]}get z_x(){return this._matrix[8]}get z_y(){return this._matrix[9]}get z_z(){return this._matrix[10]}get z_w(){return this._matrix[11]}get w_x(){return this._matrix[12]}get w_y(){return this._matrix[13]}get w_z(){return this._matrix[14]}get w_w(){return this._matrix[15]}static fromMat4(t){return (new m).setFromMat4(t)}static fromTRS(t,i,s){return (new m).setFromTRS(t,i,s)}static fromQuaternion(t){return (new m).setFromQuaternion(t)}static multiply(t,i){const s=new m;return s.set(t.x_x*i.x_x+t.x_y*i.y_x+t.x_z*i.z_x+t.x_w*i.w_x,t.x_x*i.x_y+t.x_y*i.y_y+t.x_z*i.z_y+t.x_w*i.w_y,t.x_x*i.x_z+t.x_y*i.y_z+t.x_z*i.z_z+t.x_w*i.w_z,t.x_x*i.x_w+t.x_y*i.y_w+t.x_z*i.z_w+t.x_w*i.w_w,t.y_x*i.x_x+t.y_y*i.y_x+t.y_z*i.z_x+t.y_w*i.w_x,t.y_x*i.x_y+t.y_y*i.y_y+t.y_z*i.z_y+t.y_w*i.w_y,t.y_x*i.x_z+t.y_y*i.y_z+t.y_z*i.z_z+t.y_w*i.w_z,t.y_x*i.x_w+t.y_y*i.y_w+t.y_z*i.z_w+t.y_w*i.w_w,t.z_x*i.x_x+t.z_y*i.y_x+t.z_z*i.z_x+t.z_w*i.w_x,t.z_x*i.x_y+t.z_y*i.y_y+t.z_z*i.z_y+t.z_w*i.w_y,t.z_x*i.x_z+t.z_y*i.y_z+t.z_z*i.z_z+t.z_w*i.w_z,t.z_x*i.x_w+t.z_y*i.y_w+t.z_z*i.z_w+t.z_w*i.w_w,t.w_x*i.x_x+t.w_y*i.y_x+t.w_z*i.z_x+t.w_w*i.w_x,t.w_x*i.x_y+t.w_y*i.y_y+t.w_z*i.z_y+t.w_w*i.w_y,t.w_x*i.x_z+t.w_y*i.y_z+t.w_z*i.z_z+t.w_w*i.w_z,t.w_x*i.x_w+t.w_y*i.y_w+t.w_z*i.z_w+t.w_w*i.w_w),s}static multiplyScalar(t,i){const s=new m;for(let r=0;r<this.length;r++)s._matrix[r]=t._matrix[r]*i;return s}static transpose(t){const i=new m;return i.set(t.x_x,t.y_x,t.z_x,t.w_x,t.x_y,t.y_y,t.z_y,t.w_y,t.x_z,t.y_z,t.z_z,t.w_z,t.x_w,t.y_w,t.z_w,t.w_w),i}static invert(t){const i=1/t.getDeterminant(),[s,r,e,h,a,n,x,o,y,_,u,l,c,z,w,d]=t._matrix;return (new m).set((x*l*z-o*u*z+o*_*w-n*l*w-x*_*d+n*u*d)*i,(h*u*z-e*l*z-h*_*w+r*l*w+e*_*d-r*u*d)*i,(e*o*z-h*x*z+h*n*w-r*o*w-e*n*d+r*x*d)*i,(h*x*_-e*o*_-h*n*u+r*o*u+e*n*l-r*x*l)*i,(o*u*c-x*l*c-o*y*w+a*l*w+x*y*d-a*u*d)*i,(e*l*c-h*u*c+h*y*w-s*l*w-e*y*d+s*u*d)*i,(h*x*c-e*o*c-h*a*w+s*o*w+e*a*d-s*x*d)*i,(e*o*y-h*x*y+h*a*u-s*o*u-e*a*l+s*x*l)*i,(n*l*c-o*_*c+o*y*z-a*l*z-n*y*d+a*_*d)*i,(h*_*c-r*l*c-h*y*z+s*l*z+r*y*d-s*_*d)*i,(r*o*c-h*n*c+h*a*z-s*o*z-r*a*d+s*n*d)*i,(h*n*y-r*o*y-h*a*_+s*o*_+r*a*l-s*n*l)*i,(x*_*c-n*u*c-x*y*z+a*u*z+n*y*w-a*_*w)*i,(r*u*c-e*_*c+e*y*z-s*u*z-r*y*w+s*_*w)*i,(e*n*c-r*x*c-e*a*z+s*x*z+r*a*w-s*n*w)*i,(r*x*y-e*n*y+e*a*_-s*x*_-r*a*u+s*n*u)*i)}static lookAt(t,i,s){const r=z.equals(t,i)?new z(0,0,1):z.substract(t,i).normalize();let e=z.crossProduct(s,r).normalize();e.getMagnitude()||(1===Math.abs(s.z)?r.x+=1e-5:r.z+=1e-5,r.normalize(),e=z.crossProduct(s,r).normalize());const h=z.crossProduct(r,e).normalize();return (new m).set(e.x,e.y,e.z,0,h.x,h.y,h.z,0,r.x,r.y,r.z,0,t.x,t.y,t.z,1)}static buildScale(t,i,s){return null!=i||(i=t),null!=s||(s=t),(new m).set(t,0,0,0,0,i,0,0,0,0,s,0,0,0,0,1)}static buildRotationX(t){const i=Math.cos(t),s=Math.sin(t);return (new m).set(1,0,0,0,0,i,s,0,0,-s,i,0,0,0,0,1)}static buildRotationY(t){const i=Math.cos(t),s=Math.sin(t);return (new m).set(i,0,-s,0,0,1,0,0,s,0,i,0,0,0,0,1)}static buildRotationZ(t){const i=Math.cos(t),s=Math.sin(t);return (new m).set(i,s,0,0,-s,i,0,0,0,0,1,0,0,0,0,1)}static buildTranslate(t,i,s){return (new m).set(1,0,0,0,0,1,0,0,0,0,1,0,t,i,s,1)}static buildOrthographic(t,i,s,r,e,h){return (new m).set(2/(r-s),0,0,0,0,2/(h-e),0,0,0,0,2/(t-i),0,(s+r)/(s-r),(e+h)/(e-h),(t+i)/(t-i),1)}static buildPerspective(t,i,...s){if(4===s.length){const[r,e,h,a]=s;return (new m).set(2*t/(e-r),0,0,0,0,2*t/(a-h),0,0,(e+r)/(e-r),(a+h)/(a-h),(t+i)/(t-i),-1,0,0,2*t*i/(t-i),0)}if(2===s.length){const[r,e]=s,h=Math.tan(.5*Math.PI-.5*r);return (new m).set(h/e,0,0,0,0,h,0,0,0,0,(t+i)/(t-i),-1,0,0,2*t*i/(t-i),0)}throw new Error("Incorrect args quantity")}static equals(t,i,s=6){return t.equals(i,s)}clone(){return (new m).set(this.x_x,this.x_y,this.x_z,this.x_w,this.y_x,this.y_y,this.y_z,this.y_w,this.z_x,this.z_y,this.z_z,this.z_w,this.w_x,this.w_y,this.w_z,this.w_w)}set(t,i,s,r,e,h,a,n,x,o,y,_,u,l,c,z){return this._matrix[0]=t,this._matrix[1]=i,this._matrix[2]=s,this._matrix[3]=r,this._matrix[4]=e,this._matrix[5]=h,this._matrix[6]=a,this._matrix[7]=n,this._matrix[8]=x,this._matrix[9]=o,this._matrix[10]=y,this._matrix[11]=_,this._matrix[12]=u,this._matrix[13]=l,this._matrix[14]=c,this._matrix[15]=z,this}reset(){return this._matrix[0]=1,this._matrix[1]=0,this._matrix[2]=0,this._matrix[3]=0,this._matrix[4]=0,this._matrix[5]=1,this._matrix[6]=0,this._matrix[7]=0,this._matrix[8]=0,this._matrix[9]=0,this._matrix[10]=1,this._matrix[11]=0,this._matrix[12]=0,this._matrix[13]=0,this._matrix[14]=0,this._matrix[15]=1,this}setFromMat4(t){for(let i=0;i<this.length;i++)this._matrix[i]=t._matrix[i];return this}setFromTRS(t,i,s){const r=2*i.x*i.x,e=2*i.y*i.x,h=2*i.z*i.x,a=2*i.y*i.y,n=2*i.z*i.y,x=2*i.z*i.z,o=2*i.x*i.w,y=2*i.y*i.w,_=2*i.z*i.w;return this.set((1-a-x)*s.x,(e+_)*s.x,(h-y)*s.x,0,(e-_)*s.y,(1-r-x)*s.y,(n+o)*s.y,0,(h+y)*s.z,(n-o)*s.z,(1-r-a)*s.z,0,t.x,t.y,t.z,1),this}setFromQuaternion(t){return this.setFromTRS(new z(0,0,0),t,new z(1,1,1))}multiply(t){const[i,s,r,e,h,a,n,x,o,y,_,u,l,c,z,m]=this._matrix,[w,d,M,g,p,b,F,f,P,q,S,A,R,B,V,E]=t._matrix;return this._matrix[0]=i*w+s*p+r*P+e*R,this._matrix[1]=i*d+s*b+r*q+e*B,this._matrix[2]=i*M+s*F+r*S+e*V,this._matrix[3]=i*g+s*f+r*A+e*E,this._matrix[4]=h*w+a*p+n*P+x*R,this._matrix[5]=h*d+a*b+n*q+x*B,this._matrix[6]=h*M+a*F+n*S+x*V,this._matrix[7]=h*g+a*f+n*A+x*E,this._matrix[8]=o*w+y*p+_*P+u*R,this._matrix[9]=o*d+y*b+_*q+u*B,this._matrix[10]=o*M+y*F+_*S+u*V,this._matrix[11]=o*g+y*f+_*A+u*E,this._matrix[12]=l*w+c*p+z*P+m*R,this._matrix[13]=l*d+c*b+z*q+m*B,this._matrix[14]=l*M+c*F+z*S+m*V,this._matrix[15]=l*g+c*f+z*A+m*E,this}multiplyScalar(t){for(let i=0;i<this.length;i++)this._matrix[i]*=t;return this}transpose(){const t=(new m).setFromMat4(this);return this.set(t.x_x,t.y_x,t.z_x,t.w_x,t.x_y,t.y_y,t.z_y,t.w_y,t.x_z,t.y_z,t.z_z,t.w_z,t.x_w,t.y_w,t.z_w,t.w_w),this}invert(){const t=1/this.getDeterminant(),[i,s,r,e,h,a,n,x,o,y,_,u,l,c,z,m]=this._matrix;return this.set((n*u*c-x*_*c+x*y*z-a*u*z-n*y*m+a*_*m)*t,(e*_*c-r*u*c-e*y*z+s*u*z+r*y*m-s*_*m)*t,(r*x*c-e*n*c+e*a*z-s*x*z-r*a*m+s*n*m)*t,(e*n*y-r*x*y-e*a*_+s*x*_+r*a*u-s*n*u)*t,(x*_*l-n*u*l-x*o*z+h*u*z+n*o*m-h*_*m)*t,(r*u*l-e*_*l+e*o*z-i*u*z-r*o*m+i*_*m)*t,(e*n*l-r*x*l-e*h*z+i*x*z+r*h*m-i*n*m)*t,(r*x*o-e*n*o+e*h*_-i*x*_-r*h*u+i*n*u)*t,(a*u*l-x*y*l+x*o*c-h*u*c-a*o*m+h*y*m)*t,(e*y*l-s*u*l-e*o*c+i*u*c+s*o*m-i*y*m)*t,(s*x*l-e*a*l+e*h*c-i*x*c-s*h*m+i*a*m)*t,(e*a*o-s*x*o-e*h*y+i*x*y+s*h*u-i*a*u)*t,(n*y*l-a*_*l-n*o*c+h*_*c+a*o*z-h*y*z)*t,(s*_*l-r*y*l+r*o*c-i*_*c-s*o*z+i*y*z)*t,(r*a*l-s*n*l-r*h*c+i*n*c+s*h*z-i*a*z)*t,(s*n*o-r*a*o+r*h*y-i*n*y-s*h*_+i*a*_)*t),this}getDeterminant(){const[t,i,s,r,e,h,a,n,x,o,y,_,u,l,c,z]=this._matrix;return r*a*o*u-s*n*o*u-r*h*y*u+i*n*y*u+s*h*_*u-i*a*_*u-r*a*x*l+s*n*x*l+r*e*y*l-t*n*y*l-s*e*_*l+t*a*_*l+r*h*x*c-i*n*x*c-r*e*o*c+t*n*o*c+i*e*_*c-t*h*_*c-s*h*x*z+i*a*x*z+s*e*o*z-t*a*o*z-i*e*y*z+t*h*y*z}getTRS(){const t=new z(this.w_x,this.w_y,this.w_z),i=this.getDeterminant(),s=new z(this.x_x,this.x_y,this.x_z).getMagnitude()*(i<0?-1:1),r=new z(this.y_x,this.y_y,this.y_z).getMagnitude(),e=new z(this.z_x,this.z_y,this.z_z).getMagnitude(),h=new z(s,r,e),a=(new m).set(this.x_x/s,this.x_y/s,this.x_z/s,0,this.y_x/r,this.y_y/r,this.y_z/r,0,this.z_x/e,this.z_y/e,this.z_z/e,0,0,0,0,1);return {t:t,r:c.fromRotationMatrix(a),s:h}}equals(t,i=6){for(let s=0;s<this.length;s++)if(+this._matrix[s].toFixed(i)!=+t._matrix[s].toFixed(i))return !1;return !0}applyScaling(t,i,s){const r=m.buildScale(t,i,s);return this.multiply(r)}applyTranslation(t,i,s){const r=m.buildTranslate(t,i,s);return this.multiply(r)}applyRotation(t,i){let s;switch(t){case"x":default:s=m.buildRotationX(i);break;case"y":s=m.buildRotationY(i);break;case"z":s=m.buildRotationZ(i);}return this.multiply(s)}toArray(){return this._matrix.slice()}toIntArray(){return new Int32Array(this)}toFloatArray(){return new Float32Array(this)}*[Symbol.iterator](){for(let t=0;t<this.length;t++)yield this._matrix[t];}}class g{constructor(t=0,i=0,s=0,r=1){this.length=4,this.x=t,this.y=i,this.z=s,this.w=r;}static fromVec3(t){return new g(t.x,t.y,t.z)}static multiplyByScalar(t,i){return new g(t.x*i,t.y*i,t.z*i,t.w*i)}static addScalar(t,i){return new g(t.x+i,t.y+i,t.z+i,t.w+i)}static normalize(t){return (new g).setFromVec4(t).normalize()}static add(t,i){return new g(t.x+i.x,t.y+i.y,t.z+i.z,t.w+i.w)}static substract(t,i){return new g(t.x-i.x,t.y-i.y,t.z-i.z,t.w-i.w)}static dotProduct(t,i){return t.x*i.x+t.y*i.y+t.z*i.z+t.w*i.w}static applyMat4(t,i){return t.clone().applyMat4(i)}static lerp(t,i,s){return t.clone().lerp(i,s)}static equals(t,i,s=6){return !!t&&t.equals(i,s)}clone(){return new g(this.x,this.y,this.z,this.w)}set(t,i,s,r){return this.x=t,this.y=i,this.z=s,this.w=r,this}setFromVec3(t){this.x=t.x,this.y=t.y,this.z=t.z,this.w=1;}setFromVec4(t){return this.x=t.x,this.y=t.y,this.z=t.z,this.w=t.w,this}multiplyByScalar(t){return this.x*=t,this.y*=t,this.z*=t,this.w*=t,this}addScalar(t){return this.x+=t,this.y+=t,this.z+=t,this.w+=t,this}getMagnitude(){return Math.sqrt(this.x*this.x+this.y*this.y+this.z*this.z+this.w*this.w)}normalize(){const t=this.getMagnitude();return t&&(this.x/=t,this.y/=t,this.z/=t,this.w/=t),this}add(t){return this.x+=t.x,this.y+=t.y,this.z+=t.z,this.w+=t.w,this}substract(t){return this.x-=t.x,this.y-=t.y,this.z-=t.z,this.w-=t.w,this}dotProduct(t){return this.x*t.x+this.y*t.y+this.z*t.z+this.w*t.w}applyMat4(t){if(16!==t.length)throw new Error("Matrix must contain 16 elements");const{x:i,y:s,z:r,w:e}=this,[h,a,n,x,o,y,_,u,l,c,z,m,w,d,M,g]=t;return this.x=i*h+s*o+r*l+e*w,this.y=i*a+s*y+r*c+e*d,this.z=i*n+s*_+r*z+e*M,this.w=i*x+s*u+r*m+e*g,this}lerp(t,i){return this.x+=i*(t.x-this.x),this.y+=i*(t.y-this.y),this.z+=i*(t.z-this.z),this.w+=i*(t.w-this.w),this}equals(t,i=6){return !!t&&(+this.x.toFixed(i)==+t.x.toFixed(i)&&+this.y.toFixed(i)==+t.y.toFixed(i)&&+this.z.toFixed(i)==+t.z.toFixed(i)&&+this.w.toFixed(i)==+t.w.toFixed(i))}toArray(){return [this.x,this.y,this.z,this.w]}toIntArray(){return new Int32Array(this)}toFloatArray(){return new Float32Array(this)}*[Symbol.iterator](){yield this.x,yield this.y,yield this.z,yield this.w;}}
 
@@ -1007,22 +966,38 @@
         get length() {
             return this._length;
         }
-        get iColor() {
-            return this._iColors;
-        }
         get iMatrix() {
-            const matrices = new Float32Array(this._length * 16);
+            const length = this._length * 16;
+            if (!this._iMatrix || this._iMatrix.length !== length) {
+                this._iMatrix = new Float32Array(length);
+            }
+            const matrices = this._iMatrix;
             for (let i = 0; i < this._length; i++) {
                 matrices.set(this._iDataSorted[i].mat.toFloatArray(), i * 16);
             }
             return matrices;
         }
         get iUv() {
-            const uvs = new Float32Array(this._length * 2);
+            const length = this._length * 2;
+            if (!this._iUv || this._iUv.length !== length) {
+                this._iUv = new Float32Array(length);
+            }
+            const uvs = this._iUv;
             for (let i = 0; i < this._length; i++) {
-                uvs.set(this._iDataSorted[i].uv.toFloatArray(), i * 2);
+                uvs.set(this._iDataSorted[i].uv, i * 2);
             }
             return uvs;
+        }
+        get iColor() {
+            const length = this._length * 4;
+            if (!this._iColor || this._iColor.length !== length) {
+                this._iColor = new Float32Array(length);
+            }
+            const colors = this._iColor;
+            for (let i = 0; i < this._length; i++) {
+                colors.set(this._iDataSorted[i].color, i * 4);
+            }
+            return colors;
         }
         get sceneDimensions() {
             return this._sceneDimensions;
@@ -1099,23 +1074,8 @@
             const length = Math.floor(this._options.fixedNumber
                 ?? this._options.density * this._sceneDimensions.x * this._sceneDimensions.y);
             if (this._length !== length) {
-                const newColorsLength = length * 4;
-                const newColors = new Float32Array(newColorsLength);
-                const oldColors = this._iColors;
-                const oldColorsLength = oldColors?.length || 0;
-                const colorsIndex = Math.min(newColorsLength, oldColorsLength);
-                if (oldColorsLength) {
-                    newColors.set(oldColors.subarray(0, colorsIndex), 0);
-                }
-                for (let i$1 = colorsIndex; i$1 < newColorsLength;) {
-                    const colors = s(this._options.colors);
-                    newColors[i$1++] = colors[0] / 255;
-                    newColors[i$1++] = colors[1] / 255;
-                    newColors[i$1++] = colors[2] / 255;
-                    newColors[i$1++] = this._options.fixedOpacity
-                        || i(this._options.opacityMin ?? 0, 1);
-                }
-                this._iColors = newColors.sort();
+                const oldLength = this._length || 0;
+                const oldData = this._iData || [];
                 const newSizesLength = length * 3;
                 const newSizes = new Float32Array(newSizesLength);
                 const oldSizes = this._iSizes;
@@ -1172,12 +1132,33 @@
                 this._iCurrentPositions = new Float32Array(length * 3);
                 const data = new Array(length);
                 let t;
-                for (let j = 0; j < length; j++) {
-                    t = j % 2 ? j + 1 : j;
-                    data[j] = {
-                        mat: new m(),
-                        uv: new u(this._options.textureMap[t % this._options.textureMap.length], this._options.textureMap[(t + 1) % this._options.textureMap.length]),
-                    };
+                const dataCopyLength = Math.min(length, oldLength);
+                for (let j = 0; j < dataCopyLength; j++) {
+                    data[j] = oldData[j];
+                }
+                if (dataCopyLength < length) {
+                    let uv;
+                    let color;
+                    let randomColor;
+                    for (let j = dataCopyLength; j < length; j++) {
+                        t = j % 2
+                            ? j + 1
+                            : j;
+                        uv = new Float32Array(2);
+                        uv[0] = this._options.textureMap[t % this._options.textureMap.length];
+                        uv[1] = this._options.textureMap[(t + 1) % this._options.textureMap.length];
+                        color = new Float32Array(4);
+                        randomColor = s(this._options.colors);
+                        color[0] = randomColor[0] / 255;
+                        color[1] = randomColor[1] / 255;
+                        color[2] = randomColor[2] / 255;
+                        color[3] = this._options.fixedOpacity || i(this._options.opacityMin ?? 0, 1);
+                        data[j] = {
+                            mat: new m(),
+                            uv,
+                            color,
+                        };
+                    }
                 }
                 this._iData = data;
                 this._iDataSorted = data.slice();
@@ -1189,58 +1170,58 @@
     class SpriteAnimationControl {
         constructor(gl, options) {
             this._vertexShader = `
-  #pragma vscode_glsllint_stage : vert
+    #pragma vscode_glsllint_stage : vert
 
-  attribute vec4 aColorInst;
-  attribute vec3 aPosition;
-  attribute vec2 aUv;
-  attribute vec2 aUvInst;
-  attribute mat4 aMatInst;
+    attribute vec4 aColorInst;
+    attribute vec3 aPosition;
+    attribute vec2 aUv;
+    attribute vec2 aUvInst;
+    attribute mat4 aMatInst;
 
-  uniform int uTexSize;
-  uniform vec2 uResolution;
-  uniform mat4 uModel;
-  uniform mat4 uView;
-  uniform mat4 uProjection;
-  
-  varying vec4 vColor;
-  varying vec2 vUv;
+    uniform int uTexSize;
+    uniform vec2 uResolution;
+    uniform mat4 uModel;
+    uniform mat4 uView;
+    uniform mat4 uProjection;
+    
+    varying vec4 vColor;
+    varying vec2 vUv;
 
-  void main() {
-    vColor = aColorInst;
+    void main() {
+      vColor = aColorInst;
 
-    float texSize = float(uTexSize);
-    vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
+      float texSize = float(uTexSize);
+      vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
 
-    gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
-  }
-`;
+      gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
+    }
+  `;
             this._fragmentShader = `
-  #pragma vscode_glsllint_stage : frag  
+    #pragma vscode_glsllint_stage : frag  
 
-  precision highp float;
+    precision highp float;
 
-  uniform sampler2D uTex;
+    uniform sampler2D uTex;
 
-  varying vec4 vColor;
-  varying vec2 vUv;
+    varying vec4 vColor;
+    varying vec2 vUv;
 
-  void main() {
-    vec4 color = texture2D(uTex, vUv);
-    gl_FragColor = color * vColor;
-  }
-`;
+    void main() {
+      vec4 color = texture2D(uTex, vUv);
+      gl_FragColor = color * vColor;
+    }
+  `;
             this._lastResolution = new u();
             this._dimensions = new g();
             this._gl = gl;
-            const finalOptions = new SpriteAnimationOptions(options);
+            const finalOptions = options;
+            if (!finalOptions.textureUrl) {
+                throw new Error("Texture URL not defined");
+            }
             this._fov = finalOptions.fov;
             this._depth = finalOptions.depth;
             this._program = new WGLInstancedProgram(gl, this._vertexShader, this._fragmentShader);
             this._data = new SpriteAnimationData(finalOptions);
-            if (!finalOptions.textureUrl) {
-                throw new Error("Texture URL not defined");
-            }
             this._program.loadAndSet2dTexture("uTex", finalOptions.textureUrl);
             this._program.setIntUniform("uTexSize", finalOptions.textureSize || 1);
             this._program.setBufferAttribute("aPosition", this._data.position, { vectorSize: 3 });
@@ -1264,12 +1245,13 @@
                 this._program.setFloatMatUniform("uModel", modelMatrix);
                 const projectionMatrix = m.buildPerspective(near, near + this._depth, -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
                 this._program.setFloatMatUniform("uProjection", projectionMatrix);
-                this._program.setInstancedBufferAttribute("aColorInst", this._data.iColor, { vectorSize: 4, vectorNumber: 1, divisor: 1, usage: "static" });
+                this._program.setInstancedBufferAttribute("aColorInst", this._data.iColor, { vectorSize: 4, vectorNumber: 1, divisor: 1, usage: "dynamic" });
                 this._program.setInstancedBufferAttribute("aMatInst", this._data.iMatrix, { vectorSize: 4, vectorNumber: 4, divisor: 1, usage: "dynamic" });
                 this._program.setInstancedBufferAttribute("aUvInst", this._data.iUv, { vectorSize: 2, divisor: 1, usage: "dynamic" });
             }
             else {
                 this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);
+                this._program.updateBufferAttribute("aColorInst", this._data.iColor, 0);
                 this._program.updateBufferAttribute("aMatInst", this._data.iMatrix, 0);
                 this._program.updateBufferAttribute("aUvInst", this._data.iUv, 0);
             }
@@ -1291,6 +1273,37 @@
             this._gl.canvas.height = resolution.y;
         }
     }
+
+    const defaultSpriteAnimationOptions = {
+        expectedFps: 60,
+        fixedNumber: null,
+        density: 0.0002,
+        depth: 1000,
+        fov: 120,
+        size: [16, 64],
+        velocityX: [-0.1, 0.1],
+        velocityY: [-0.1, 0.1],
+        velocityZ: [-0.1, 0.1],
+        angularVelocity: [-0.001, 0.001],
+        blur: 1,
+        colors: [[255, 255, 255], [255, 244, 193], [250, 239, 219]],
+        fixedOpacity: null,
+        opacityMin: 0,
+        opacityStep: 0,
+        drawLines: true,
+        lineColor: [113, 120, 146],
+        lineLength: 150,
+        lineWidth: 2,
+        onClick: null,
+        onHover: null,
+        onClickCreateN: 10,
+        onClickMoveR: 200,
+        onHoverMoveR: 50,
+        onHoverLineLength: 150,
+        textureUrl: null,
+        textureSize: null,
+        textureMap: null,
+    };
 
     function getRandomUuid() {
         return crypto.getRandomValues(new Uint32Array(4)).join("-");
@@ -1415,12 +1428,11 @@
             if (window.getComputedStyle(container).getPropertyValue("position") === "static") {
                 throw new Error("Container is not positioned");
             }
-            const finalOptions = new SpriteAnimationOptions(options);
+            const finalOptions = Object.assign({}, defaultSpriteAnimationOptions, options);
             return new WGLAnimation(container, finalOptions, SpriteAnimationControl);
         }
     }
 
-    exports.SpriteAnimationOptions = SpriteAnimationOptions;
     exports.WGLAnimationFactory = WGLAnimationFactory;
 
     Object.defineProperty(exports, '__esModule', { value: true });

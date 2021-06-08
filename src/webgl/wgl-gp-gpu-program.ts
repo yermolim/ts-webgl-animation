@@ -6,6 +6,9 @@ void main() {
   gl_Position = aPosition;
 }`;
 
+/**
+ * WebGL program wrapper for GPU computations
+ */
 export abstract class WGLGpGPUProgram extends WGLProgramBase {
   protected readonly _width: number;
   protected readonly _height: number;

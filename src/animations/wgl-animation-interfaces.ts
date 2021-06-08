@@ -1,8 +1,8 @@
 import { Vec2 } from "mathador";
 
 interface AnimationOptions {
-  expectedFps: number;
-  blur: number;
+  expectedFps?: number;
+  blur?: number;
 }
 
 interface IAnimation {
