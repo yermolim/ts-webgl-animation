@@ -939,6 +939,7 @@ class SpriteAnimationData {
     constructor(options) {
         this._dimensions = new g();
         this._sceneDimensions = new z();
+        this._lastFrameTimestamp = 0;
         this._options = options;
         this._margin = Math.max(0, options.size[1], options.lineLength, options.onHoverLineLength);
         this._doubleMargin = this._margin * 2;
@@ -997,45 +998,52 @@ class SpriteAnimationData {
         return this._sceneDimensions;
     }
     updateData(dimensions, pointerPosition, pointerDown, elapsedTime) {
+        const t = elapsedTime - this._lastFrameTimestamp;
+        this._lastFrameTimestamp = elapsedTime;
         if (this.updateDimensions(dimensions)) {
             this.updateLength();
         }
         const { x: dx, y: dy, z: dz } = this._sceneDimensions;
-        const t = elapsedTime;
         const tempV2 = new u();
         for (let i = 0; i < this._length; i++) {
-            const sx = this._iSizes[i * 3] / dx;
-            const sy = this._iSizes[i * 3 + 1] / dy;
-            const sz = this._iSizes[i * 3 + 2];
-            const bx = this._iBasePositions[i * 3];
-            const by = this._iBasePositions[i * 3 + 1];
-            const bz = this._iBasePositions[i * 3 + 2];
-            const vx = this._iVelocities[i * 3];
-            const vy = this._iVelocities[i * 3 + 1];
-            const vz = this._iVelocities[i * 3 + 2];
+            const ix = i * 3;
+            const iy = ix + 1;
+            const iz = iy + 1;
+            const sx = this._iSizes[ix] / dx;
+            const sy = this._iSizes[iy] / dy;
+            const sz = this._iSizes[iz];
+            const cx = this._iPositions[ix];
+            const cy = this._iPositions[iy];
+            const cz = this._iPositions[iz];
+            const crz = this._iAngularPositions[i];
+            const vx = this._iVelocities[ix];
+            const vy = this._iVelocities[iy];
+            const vz = this._iVelocities[iz];
             const wz = this._iAngularVelocities[i];
-            const lastDepth = this._iCurrentPositions[i * 3 + 2] || bz;
-            let tz = lastDepth + vz / dz;
-            if (tz > -0.001) {
-                tz = -0.001;
-                this._iVelocities[i * 3 + 2] = -vz;
+            const rz = (crz + t * wz) % (2 * Math.PI);
+            let z = cz + t * vz / dz;
+            if (z > -0.001) {
+                z = -0.001;
+                this._iVelocities[iz] = -vz;
             }
-            else if (tz < -0.999) {
-                tz = -0.999;
-                this._iVelocities[i * 3 + 2] = -vz;
+            else if (z < -0.999) {
+                z = -0.999;
+                this._iVelocities[iz] = -vz;
             }
-            const [zdx, zdy] = this.getSceneDimensionsAtZ(tz * dz, tempV2);
+            const [zdx, zdy] = this.getSceneDimensionsAtZ(z * dz, tempV2);
             const kx = zdx / dx;
             const ky = zdy / dy;
-            const x = (bx + t * vx / dx) % kx;
-            const y = (by + t * vy / dy) % ky;
+            const x = (cx + t * vx / dx) % kx;
+            const y = (cy + t * vy / dy) % ky;
             const tx = (x < 0 ? x + kx : x) - kx / 2;
             const ty = (y < 0 ? y + ky : y) - ky / 2;
-            this._iCurrentPositions[i * 3] = tx;
-            this._iCurrentPositions[i * 3 + 1] = ty;
-            this._iCurrentPositions[i * 3 + 2] = tz;
+            const tz = z;
+            this._iPositions[ix] = x;
+            this._iPositions[iy] = y;
+            this._iPositions[iz] = z;
+            this._iAngularPositions[i] = rz;
             this._iData[i].mat.reset()
-                .applyRotation("z", t * wz % (2 * Math.PI))
+                .applyRotation("z", rz)
                 .applyScaling(sx, sy, sz)
                 .applyTranslation(tx, ty, tz);
         }
@@ -1085,18 +1093,30 @@ class SpriteAnimationData {
                 newSizes[i$1++] = 1;
             }
             this._iSizes = newSizes;
-            const newBasePositionsLength = length * 3;
-            const newBasePositions = new Float32Array(newBasePositionsLength);
-            const oldBasePositions = this._iBasePositions;
-            const oldBasePositionsLength = oldBasePositions?.length || 0;
-            const basePositionsIndex = Math.min(newBasePositionsLength, oldBasePositionsLength);
-            if (oldBasePositionsLength) {
-                newBasePositions.set(oldBasePositions.subarray(0, basePositionsIndex), 0);
+            const newPositionsLength = length * 3;
+            const newPositions = new Float32Array(newPositionsLength);
+            const oldPositions = this._iPositions;
+            const oldPositionsLength = oldPositions?.length || 0;
+            const newPositionsIndex = Math.min(newPositionsLength, oldPositionsLength);
+            if (oldPositionsLength) {
+                newPositions.set(oldPositions.subarray(0, newPositionsIndex), 0);
             }
-            for (let i$1 = basePositionsIndex; i$1 < newBasePositionsLength; i$1 += 3) {
-                newBasePositions.set([i(0, 1), i(0, 1), i(-0.999, -0.001)], i$1);
+            for (let i$1 = newPositionsIndex; i$1 < newPositionsLength; i$1 += 3) {
+                newPositions.set([i(0, 1), i(0, 1), i(-0.999, -0.001)], i$1);
             }
-            this._iBasePositions = newBasePositions;
+            this._iPositions = newPositions;
+            const newAngularPositionsLength = length;
+            const newAngularPositions = new Float32Array(newAngularPositionsLength);
+            const oldAngularPositions = this._iPositions;
+            const oldAngularPositionsLength = oldAngularPositions?.length || 0;
+            const newAngularPositionsIndex = Math.min(newAngularPositionsLength, oldAngularPositionsLength);
+            if (oldAngularPositionsLength) {
+                newAngularPositions.set(oldAngularPositions.subarray(0, newAngularPositionsIndex), 0);
+            }
+            for (let i = newAngularPositionsIndex; i < newAngularPositionsLength; i++) {
+                newAngularPositions.set([0], i);
+            }
+            this._iAngularPositions = newAngularPositions;
             const newVelocitiesLength = length * 3;
             const newVelocities = new Float32Array(newVelocitiesLength);
             const oldVelocities = this._iVelocities;
@@ -1123,7 +1143,6 @@ class SpriteAnimationData {
                 newAngularVelocities[i$1] = i(this._options.angularVelocity[0], this._options.angularVelocity[1]);
             }
             this._iAngularVelocities = newAngularVelocities;
-            this._iCurrentPositions = new Float32Array(length * 3);
             const data = new Array(length);
             let t;
             const dataCopyLength = Math.min(length, oldLength);
