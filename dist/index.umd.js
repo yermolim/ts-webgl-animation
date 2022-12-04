@@ -1026,7 +1026,6 @@
                 const vy = this._iVelocities[iy];
                 const vz = this._iVelocities[iz];
                 const wz = this._iAngularVelocities[i];
-                const rz = (crz + t * wz) % (2 * Math.PI);
                 let z = cz + t * vz / dz;
                 if (z > -0.001) {
                     z = -0.001;
@@ -1036,14 +1035,18 @@
                     z = -0.999;
                     this._iVelocities[iz] = -vz;
                 }
+                const [prev_zdx, prev_zdy] = this.getSceneDimensionsAtZ(cz * dz, tempV2);
+                const prev_vwz = prev_zdx / dx;
+                const prev_vhz = prev_zdy / dy;
                 const [zdx, zdy] = this.getSceneDimensionsAtZ(z * dz, tempV2);
-                const kx = zdx / dx;
-                const ky = zdy / dy;
-                const x = (cx + t * vx / dx) % kx;
-                const y = (cy + t * vy / dy) % ky;
-                const tx = (x < 0 ? x + kx : x) - kx / 2;
-                const ty = (y < 0 ? y + ky : y) - ky / 2;
+                const vwz = zdx / dx;
+                const vhz = zdy / dy;
+                const x = (cx / prev_vwz * vwz + t * vx / dx) % vwz;
+                const y = (cy / prev_vhz * vhz + t * vy / dy) % vhz;
+                const tx = (x < 0 ? x + vwz : x) - vwz / 2;
+                const ty = (y < 0 ? y + vhz : y) - vhz / 2;
                 const tz = z;
+                const rz = (crz + t * wz) % (2 * Math.PI);
                 this._iPositions[ix] = x;
                 this._iPositions[iy] = y;
                 this._iPositions[iz] = z;
@@ -1108,7 +1111,11 @@
                     newPositions.set(oldPositions.subarray(0, newPositionsIndex), 0);
                 }
                 for (let i$1 = newPositionsIndex; i$1 < newPositionsLength; i$1 += 3) {
-                    newPositions.set([i(0, 1), i(0, 1), i(-0.999, -0.001)], i$1);
+                    newPositions.set([
+                        i(0, 2),
+                        i(0, 2),
+                        i(-0.999, -0.001)
+                    ], i$1);
                 }
                 this._iPositions = newPositions;
                 const newAngularPositionsLength = length;

@@ -138,8 +138,6 @@ export class SpriteAnimationData {
       const vz = this._iVelocities[iz];
       const wz = this._iAngularVelocities[i];
 
-      const rz = (crz + t * wz) % (2 * Math.PI);
-
       let z = cz + t * vz / dz;
       // reverse the instance Z velocity vector if the current depth is out of bounds
       if (z > -0.001) {
@@ -150,22 +148,32 @@ export class SpriteAnimationData {
         this._iVelocities[iz] = -vz;
       }
 
-      // get visible bound factor for the given Z (kx = ky = 1 at Z = 0)
+      // normalized viewport size at the specified Z (kx = ky = 1 at Z = 0)
+      const [prev_zdx, prev_zdy] = this.getSceneDimensionsAtZ(cz * dz, tempV2);
+      // viewport width at the previous Z
+      const prev_vwz = prev_zdx / dx;
+      // viewport height at the previous Z
+      const prev_vhz = prev_zdy / dy;
+
       const [zdx, zdy] = this.getSceneDimensionsAtZ(z * dz, tempV2);
-      const kx = zdx / dx;
-      const ky = zdy / dy;
+      // viewport width at the current Z
+      const vwz = zdx / dx;
+      // viewport height at the current Z
+      const vhz = zdy / dy;
 
       // update positions
       // keep instance inside the scene using remainder operator
-      const x = (cx + t * vx / dx) % kx;
-      const y = (cy + t * vy / dy) % ky;
+      const x = (cx / prev_vwz * vwz + t * vx / dx) % vwz;
+      const y = (cy / prev_vhz * vhz + t * vy / dy) % vhz;
 
-      // translate instance taking into account that the scene center should be at 0,0
-      const tx = (x < 0 ? x + kx : x) - kx / 2;
-      const ty = (y < 0 ? y + ky : y) - ky / 2;
-      const tz = z;
+      // shift coordinates so the scene center could be at 0,0
+      const tx = (x < 0 ? x + vwz : x) - vwz / 2;
+      const ty = (y < 0 ? y + vhz : y) - vhz / 2;
+      const tz = z;      
 
-      // set current positions for further processing
+      const rz = (crz + t * wz) % (2 * Math.PI);
+
+      // save current positions for further processing
       this._iPositions[ix] = x;
       this._iPositions[iy] = y;
       this._iPositions[iz] = z;
@@ -249,7 +257,11 @@ export class SpriteAnimationData {
         newPositions.set(oldPositions.subarray(0, newPositionsIndex), 0);
       }
       for (let i = newPositionsIndex; i < newPositionsLength; i += 3) {
-        newPositions.set([getRandomFloat(0, 1), getRandomFloat(0, 1), getRandomFloat(-0.999, -0.001)], i);
+        newPositions.set([
+          getRandomFloat(0, 2), 
+          getRandomFloat(0, 2), 
+          getRandomFloat(-0.999, -0.001)
+        ], i);
       }
       this._iPositions = newPositions;
 
