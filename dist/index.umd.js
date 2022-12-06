@@ -947,7 +947,7 @@
             this._sceneDimensions = new z();
             this._lastFrameTimestamp = 0;
             this._options = options;
-            this._margin = Math.max(0, options.size[1], options.lineLength, options.onHoverLineLength);
+            this._margin = Math.max(0, options.size[1], options.lineLength || 0, options.clickR || 0, options.hoverR || 0);
             this._doubleMargin = this._margin * 2;
             const rect = new Square(1);
             this._primitive = rect;
@@ -1009,69 +1009,46 @@
             if (this.updateDimensions(dimensions)) {
                 this.updateLength();
             }
-            const { x: dx, y: dy, z: dz } = this._sceneDimensions;
             const tempV2 = new u();
             for (let i = 0; i < this._length; i++) {
-                const ix = i * 3;
-                const iy = ix + 1;
-                const iz = iy + 1;
-                const sx = this._iSizes[ix] / dx;
-                const sy = this._iSizes[iy] / dy;
-                const sz = this._iSizes[iz];
-                const cx = this._iPositions[ix];
-                const cy = this._iPositions[iy];
-                const cz = this._iPositions[iz];
-                const crz = this._iAngularPositions[i];
-                const vx = this._iVelocities[ix];
-                const vy = this._iVelocities[iy];
-                const vz = this._iVelocities[iz];
-                const wz = this._iAngularVelocities[i];
-                let z = cz + t * vz / dz;
-                if (z > -0.001) {
-                    z = -0.001;
-                    this._iVelocities[iz] = -vz;
-                }
-                else if (z < -0.999) {
-                    z = -0.999;
-                    this._iVelocities[iz] = -vz;
-                }
-                const [prev_zdx, prev_zdy] = this.getSceneDimensionsAtZ(cz * dz, tempV2);
-                const prev_vwz = prev_zdx / dx;
-                const prev_vhz = prev_zdy / dy;
-                const [zdx, zdy] = this.getSceneDimensionsAtZ(z * dz, tempV2);
-                const vwz = zdx / dx;
-                const vhz = zdy / dy;
-                const x = (cx / prev_vwz * vwz + t * vx / dx) % vwz;
-                const y = (cy / prev_vhz * vhz + t * vy / dy) % vhz;
-                const tx = (x < 0 ? x + vwz : x) - vwz / 2;
-                const ty = (y < 0 ? y + vhz : y) - vhz / 2;
-                const tz = z;
-                const rz = (crz + t * wz) % (2 * Math.PI);
-                this._iPositions[ix] = x;
-                this._iPositions[iy] = y;
-                this._iPositions[iz] = z;
-                this._iAngularPositions[i] = rz;
-                this._iData[i].mat.reset()
-                    .applyRotation("z", rz)
-                    .applyScaling(sx, sy, sz)
-                    .applyTranslation(tx, ty, tz);
+                this.updateInstance(i, t, tempV2);
             }
             this._iDataSorted.sort((a, b) => a.mat.w_z - b.mat.w_z);
         }
+        updateInstance(index, t, tempV2) {
+            const { x: dx, y: dy, z: dz } = this._sceneDimensions;
+            const ix = index * 3;
+            const iy = ix + 1;
+            const iz = iy + 1;
+            const prevZ = this._iPositions[iz];
+            const [prev_vwz, prev_vhz] = this.getSceneDimensionsAtZ(prevZ, tempV2);
+            const nextZ = this.updateNextFrameZ(iz, dz, t);
+            const [vwz, vhz] = this.getSceneDimensionsAtZ(nextZ, tempV2);
+            this._iData[index].mat.reset()
+                .applyRotation("z", this.updateAngularRotation(index, t))
+                .applyScaling(this._iSizes[ix] / dx, this._iSizes[iy] / dy, this._iSizes[iz])
+                .applyTranslation(this.shiftCoordToClipSpace(this.updateNextFrameCoord(ix, dx, prev_vwz, vwz, t), vwz), this.shiftCoordToClipSpace(this.updateNextFrameCoord(iy, dy, prev_vhz, vhz, t), vhz), nextZ);
+        }
         getSceneDimensionsAtZ(z, out) {
+            const { x: dx, y: dy, z: dz } = this._sceneDimensions;
+            let zAbsolute = z * dz;
             const cameraZ = this._dimensions.w;
-            if (z < cameraZ) {
-                z -= cameraZ;
+            if (zAbsolute < cameraZ) {
+                zAbsolute -= cameraZ;
             }
             else {
-                z += cameraZ;
+                zAbsolute += cameraZ;
             }
             const fov = e(this._options.fov);
-            const height = 2 * Math.tan(fov / 2) * Math.abs(z);
-            const width = height / this._dimensions.y * this._dimensions.x;
+            const netHeight = 2 * Math.tan(fov / 2) * Math.abs(zAbsolute);
+            const netWidth = netHeight / this._dimensions.y * this._dimensions.x;
+            const totalHeight = netHeight + this._doubleMargin;
+            const totalWidth = netWidth + this._doubleMargin;
+            const clipSpaceWidth = totalWidth / dx;
+            const clipSpaceHeight = totalHeight / dy;
             return out
-                ? out.set(width + this._doubleMargin, height + this._doubleMargin)
-                : new u(width + this._doubleMargin, height + this._doubleMargin);
+                ? out.set(clipSpaceWidth, clipSpaceHeight)
+                : new u(clipSpaceWidth, clipSpaceHeight);
         }
         updateDimensions(dimensions) {
             const resChanged = !dimensions.equals(this._dimensions);
@@ -1190,6 +1167,41 @@
                 this._iDataSorted = data.slice();
                 this._length = length;
             }
+        }
+        updateNextFrameZ(index, zViewSize, timeElapsed) {
+            const prevFrameZ = this._iPositions[index];
+            const velocityZ = this._iVelocities[index];
+            let nextZ = prevFrameZ + timeElapsed * velocityZ / zViewSize;
+            if (nextZ > -0.001) {
+                nextZ = -0.001;
+                this._iVelocities[index] = -velocityZ;
+            }
+            else if (nextZ < -0.999) {
+                nextZ = -0.999;
+                this._iVelocities[index] = -velocityZ;
+            }
+            this._iPositions[index] = nextZ;
+            return nextZ;
+        }
+        updateNextFrameCoord(index, viewSizeAtZero, prevViewSizeAtZ, viewSizeAtZ, timeElapsed) {
+            const prevCoord = this._iPositions[index];
+            const velocity = this._iVelocities[index];
+            const nextCoord = this.calcNextFrameCoord(prevCoord, viewSizeAtZero, prevViewSizeAtZ, viewSizeAtZ, timeElapsed, velocity);
+            this._iPositions[index] = nextCoord;
+            return nextCoord;
+        }
+        updateAngularRotation(index, timeElapsed) {
+            const prevRotationZ = this._iAngularPositions[index];
+            const angularVelocityZ = this._iAngularVelocities[index];
+            const nextRotationZ = (prevRotationZ + timeElapsed * angularVelocityZ) % (2 * Math.PI);
+            this._iAngularPositions[index] = nextRotationZ;
+            return nextRotationZ;
+        }
+        calcNextFrameCoord(prevCoord, viewSizeAtZero, prevViewSizeAtZ, viewSizeAtZ, timeElapsed, velocity) {
+            return (prevCoord / prevViewSizeAtZ * viewSizeAtZ + timeElapsed * velocity / viewSizeAtZero) % viewSizeAtZ;
+        }
+        shiftCoordToClipSpace(coord, viewWidth) {
+            return (coord < 0 ? coord + viewWidth : coord) - viewWidth / 2;
         }
     }
 
@@ -1322,10 +1334,10 @@
         lineWidth: 2,
         onClick: null,
         onHover: null,
-        onClickCreateN: 10,
-        onClickMoveR: 200,
-        onHoverMoveR: 50,
-        onHoverLineLength: 150,
+        createN: 10,
+        clickR: 200,
+        hoverR: 150,
+        showPointerEffectArea: false,
         textureUrl: null,
         textureSize: null,
         textureMap: null,

@@ -57,10 +57,10 @@ export interface SpriteAnimationOptions extends AnimationOptions {
 	lineWidth?: number;
 	onClick?: "create" | "move";
 	onHover?: "move" | "draw-lines";
-	onClickCreateN?: number;
-	onClickMoveR?: number;
-	onHoverMoveR?: number;
-	onHoverLineLength?: number;
+	createN?: number;
+	clickR?: number;
+	hoverR?: number;
+	showPointerEffectArea: boolean;
 }
 export declare class WGLAnimationFactory {
 	static createSpriteAnimation(containerSelector: string, options?: any): IAnimation;

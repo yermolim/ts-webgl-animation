@@ -100,10 +100,13 @@ export interface SpriteAnimationOptions extends AnimationOptions {
 
   onClick?: "create" | "move";
   onHover?: "move" | "draw-lines";
-  onClickCreateN?: number;
-  onClickMoveR?: number;
-  onHoverMoveR?: number;
-  onHoverLineLength?: number;  
+
+  createN?: number;
+
+  clickR?: number;
+  hoverR?: number;
+
+  showPointerEffectArea: boolean;
 }
 
 export const defaultSpriteAnimationOptions: SpriteAnimationOptions = {
@@ -132,10 +135,12 @@ export const defaultSpriteAnimationOptions: SpriteAnimationOptions = {
 
   onClick: null,
   onHover: null,
-  onClickCreateN: 10,
-  onClickMoveR: 200,
-  onHoverMoveR: 50,
-  onHoverLineLength: 150,
+  
+  createN: 10,
+  
+  clickR: 200,
+  hoverR: 150,
+  showPointerEffectArea: false,
   
   textureUrl: null,
   textureSize: null,

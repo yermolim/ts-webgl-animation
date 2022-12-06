@@ -95,7 +95,7 @@ export class SpriteAnimationControl implements IWGLAnimationControl {
 
   prepareNextFrame(resolution: Vec2, pointerPosition: Vec2, pointerDown: boolean, elapsedTime: number) {
     const resChanged = !resolution.equals(this._lastResolution);
-    if (resChanged) {   
+    if (resChanged) {
       // TODO: move to options
       const near = Math.tan(0.5 * Math.PI - 0.5 * degToRad(this._fov)) * resolution.y / 2;
 
@@ -131,20 +131,21 @@ export class SpriteAnimationControl implements IWGLAnimationControl {
         {vectorSize: 4, vectorNumber: 4, divisor: 1, usage: "dynamic"});
       this._program.setInstancedBufferAttribute("aUvInst", this._data.iUv,
         {vectorSize: 2, divisor: 1, usage: "dynamic"});
-      //#endregion   
-      
-    //#region debug
-    // const vec = new Vec3(1, 1, 0);
-    // console.log(vec);
-    // const inst = new Mat4().set(...this._data.matrix.slice(0, 16));
-    // console.log(inst);
-    // const view = new Mat4().applyTranslation(0, 0, -near);
-    // console.log(view);
-    // console.log(vec.applyMat4(inst));
-    // console.log(vec.applyMat4(modelMatrix));
-    // console.log(vec.applyMat4(view));
-    // console.log(vec.applyMat4(projectionMatrix));
-    //#endregion
+      //#endregion
+
+      //#region debug
+      // const vec = new Vec3(1, 1, 0);
+      // console.log(vec);
+      // const inst = new Mat4().set(...this._data.matrix.slice(0, 16));
+      // console.log(inst);
+      // const view = new Mat4().applyTranslation(0, 0, -near);
+      // console.log(view);
+      // console.log(vec.applyMat4(inst));
+      // console.log(vec.applyMat4(modelMatrix));
+      // console.log(vec.applyMat4(view));
+      // console.log(vec.applyMat4(projectionMatrix));
+      //#endregion
+
     } else {
       this._data.updateData(this._dimensions, pointerPosition, pointerDown, elapsedTime);
       this._program.updateBufferAttribute("aColorInst", this._data.iColor, 0);
