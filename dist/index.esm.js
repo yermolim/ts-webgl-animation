@@ -1010,14 +1010,14 @@ class SpriteAnimationData {
         this._iDataSorted.sort((a, b) => a.mat.w_z - b.mat.w_z);
     }
     updateInstance(index, t, tempV2) {
-        const { x: dx, y: dy, z: dz } = this._sceneDimensions;
         const ix = index * 3;
         const iy = ix + 1;
         const iz = iy + 1;
         const prevZ = this._iPositions[iz];
         const [prev_vwz, prev_vhz] = this.getSceneDimensionsAtZ(prevZ, tempV2);
-        const nextZ = this.updateNextFrameZ(iz, dz, t);
+        const nextZ = this.updateNextFrameZ(iz, t);
         const [vwz, vhz] = this.getSceneDimensionsAtZ(nextZ, tempV2);
+        const { x: dx, y: dy } = this._sceneDimensions;
         this._iData[index].mat.reset()
             .applyRotation("z", this.updateAngularRotation(index, t))
             .applyScaling(this._iSizes[ix] / dx, this._iSizes[iy] / dy, this._iSizes[iz])
@@ -1162,10 +1162,10 @@ class SpriteAnimationData {
             this._length = length;
         }
     }
-    updateNextFrameZ(index, zViewSize, timeElapsed) {
+    updateNextFrameZ(index, timeElapsed) {
         const prevFrameZ = this._iPositions[index];
         const velocityZ = this._iVelocities[index];
-        let nextZ = prevFrameZ + timeElapsed * velocityZ / zViewSize;
+        let nextZ = prevFrameZ + timeElapsed * velocityZ / this._sceneDimensions.z;
         if (nextZ > -0.001) {
             nextZ = -0.001;
             this._iVelocities[index] = -velocityZ;
@@ -1199,66 +1199,79 @@ class SpriteAnimationData {
     }
 }
 
+const VCOLOR_ASSIGNMENT_OPACITY_BY_DEPTH = "vColor = vec4(aColorInst.x, aColorInst.y, aColorInst.z, aColorInst.w * (1.0 - abs(aMatInst[3][2])));";
+const VCOLOR_ASSIGNMENT_PLAIN = "vColor = aColorInst;";
+const VCOLOR_ASSIGNMENT_PLACEHOLDER = "VCOLOR_ASSIGNMENT";
+const VERTEX_SHADER_BASE = `
+  #pragma vscode_glsllint_stage : vert
+
+  attribute vec4 aColorInst;
+  attribute vec3 aPosition;
+  attribute vec2 aUv;
+  attribute vec2 aUvInst;
+  attribute mat4 aMatInst;
+
+  uniform int uTexSize;
+  uniform vec2 uResolution;
+  uniform mat4 uModel;
+  uniform mat4 uView;
+  uniform mat4 uProjection;
+
+  varying vec4 vColor;
+  varying vec2 vUv;
+
+  void main() {
+    ${VCOLOR_ASSIGNMENT_PLACEHOLDER}
+
+    float texSize = float(uTexSize);
+    vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
+
+    gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
+  }
+`;
+const FRAGMENT_SHADER_BASE = `
+  #pragma vscode_glsllint_stage : frag  
+
+  precision highp float;
+
+  uniform sampler2D uTex;
+
+  varying vec4 vColor;
+  varying vec2 vUv;
+
+  void main() {
+    vec4 color = texture2D(uTex, vUv);
+    gl_FragColor = color * vColor;
+  }
+`;
 class SpriteAnimationControl {
     constructor(gl, options) {
-        this._vertexShader = `
-    #pragma vscode_glsllint_stage : vert
-
-    attribute vec4 aColorInst;
-    attribute vec3 aPosition;
-    attribute vec2 aUv;
-    attribute vec2 aUvInst;
-    attribute mat4 aMatInst;
-
-    uniform int uTexSize;
-    uniform vec2 uResolution;
-    uniform mat4 uModel;
-    uniform mat4 uView;
-    uniform mat4 uProjection;
-    
-    varying vec4 vColor;
-    varying vec2 vUv;
-
-    void main() {
-      vColor = aColorInst;
-
-      float texSize = float(uTexSize);
-      vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
-
-      gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
-    }
-  `;
-        this._fragmentShader = `
-    #pragma vscode_glsllint_stage : frag  
-
-    precision highp float;
-
-    uniform sampler2D uTex;
-
-    varying vec4 vColor;
-    varying vec2 vUv;
-
-    void main() {
-      vec4 color = texture2D(uTex, vUv);
-      gl_FragColor = color * vColor;
-    }
-  `;
         this._lastResolution = new u();
         this._dimensions = new g();
         this._gl = gl;
         const finalOptions = options;
+        this._options = finalOptions;
         if (!finalOptions.textureUrl) {
             throw new Error("Texture URL not defined");
         }
         this._fov = finalOptions.fov;
         this._depth = finalOptions.depth;
-        this._program = new WGLInstancedProgram(gl, this._vertexShader, this._fragmentShader);
+        this._program = new WGLInstancedProgram(gl, this.vertexShader, this.fragmentShader);
         this._data = new SpriteAnimationData(finalOptions);
         this._program.loadAndSet2dTexture("uTex", finalOptions.textureUrl);
         this._program.setIntUniform("uTexSize", finalOptions.textureSize || 1);
         this._program.setBufferAttribute("aPosition", this._data.position, { vectorSize: 3 });
         this._program.setBufferAttribute("aUv", this._data.uv, { vectorSize: 2 });
         this._program.setIndexAttribute(this._data.index);
+    }
+    get vertexShader() {
+        return VERTEX_SHADER_BASE
+            .replace(VCOLOR_ASSIGNMENT_PLACEHOLDER, this._options?.depthAffectsOpacity
+            ? VCOLOR_ASSIGNMENT_OPACITY_BY_DEPTH
+            : VCOLOR_ASSIGNMENT_PLAIN);
+    }
+    get fragmentShader() {
+        return FRAGMENT_SHADER_BASE;
     }
     prepareNextFrame(resolution, pointerPosition, pointerDown, elapsedTime) {
         const resChanged = !resolution.equals(this._lastResolution);
@@ -1320,8 +1333,9 @@ const defaultSpriteAnimationOptions = {
     blur: 1,
     colors: [[255, 255, 255], [255, 244, 193], [250, 239, 219]],
     fixedOpacity: null,
-    opacityMin: 0,
+    opacityMin: 0.5,
     opacityStep: 0,
+    depthAffectsOpacity: true,
     drawLines: true,
     lineColor: [113, 120, 146],
     lineLength: 150,

@@ -47,6 +47,7 @@ export interface SpriteAnimationOptions extends AnimationOptions {
 	fixedOpacity?: number;
 	opacityMin?: number;
 	opacityStep?: number;
+	depthAffectsOpacity: boolean;
 	drawLines?: boolean;
 	lineColor?: [
 		r: number,

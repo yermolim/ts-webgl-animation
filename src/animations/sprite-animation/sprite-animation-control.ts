@@ -15,51 +15,70 @@ vec3 billboard(vec2 offset, mat4 view) {
 }
 `;
 
+const VCOLOR_ASSIGNMENT_OPACITY_BY_DEPTH = 
+"vColor = vec4(aColorInst.x, aColorInst.y, aColorInst.z, aColorInst.w * (1.0 - abs(aMatInst[3][2])));";
+const VCOLOR_ASSIGNMENT_PLAIN = 
+"vColor = aColorInst;";
+const VCOLOR_ASSIGNMENT_PLACEHOLDER = 
+"VCOLOR_ASSIGNMENT";
+
+const VERTEX_SHADER_BASE = `
+  #pragma vscode_glsllint_stage : vert
+
+  attribute vec4 aColorInst;
+  attribute vec3 aPosition;
+  attribute vec2 aUv;
+  attribute vec2 aUvInst;
+  attribute mat4 aMatInst;
+
+  uniform int uTexSize;
+  uniform vec2 uResolution;
+  uniform mat4 uModel;
+  uniform mat4 uView;
+  uniform mat4 uProjection;
+
+  varying vec4 vColor;
+  varying vec2 vUv;
+
+  void main() {
+    ${VCOLOR_ASSIGNMENT_PLACEHOLDER}
+
+    float texSize = float(uTexSize);
+    vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
+
+    gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
+  }
+`;
+
+const FRAGMENT_SHADER_BASE = `
+  #pragma vscode_glsllint_stage : frag  
+
+  precision highp float;
+
+  uniform sampler2D uTex;
+
+  varying vec4 vColor;
+  varying vec2 vUv;
+
+  void main() {
+    vec4 color = texture2D(uTex, vUv);
+    gl_FragColor = color * vColor;
+  }
+`;
+
 export class SpriteAnimationControl implements IWGLAnimationControl {
-  private readonly _vertexShader = `
-    #pragma vscode_glsllint_stage : vert
+  private get vertexShader(): string {
+    return VERTEX_SHADER_BASE
+      .replace(VCOLOR_ASSIGNMENT_PLACEHOLDER, 
+        this._options?.depthAffectsOpacity 
+          ? VCOLOR_ASSIGNMENT_OPACITY_BY_DEPTH
+          : VCOLOR_ASSIGNMENT_PLAIN);
+  }
+  private get fragmentShader(): string {
+    return FRAGMENT_SHADER_BASE;
+  }
 
-    attribute vec4 aColorInst;
-    attribute vec3 aPosition;
-    attribute vec2 aUv;
-    attribute vec2 aUvInst;
-    attribute mat4 aMatInst;
-
-    uniform int uTexSize;
-    uniform vec2 uResolution;
-    uniform mat4 uModel;
-    uniform mat4 uView;
-    uniform mat4 uProjection;
-    
-    varying vec4 vColor;
-    varying vec2 vUv;
-
-    void main() {
-      vColor = aColorInst;
-
-      float texSize = float(uTexSize);
-      vUv = vec2((aUvInst.x + aUv.x) / texSize, (aUvInst.y + aUv.y) / texSize);
-
-      gl_Position = uProjection * uView * uModel * aMatInst * vec4(aPosition, 1.0);
-    }
-  `;
-
-  private readonly _fragmentShader = `
-    #pragma vscode_glsllint_stage : frag  
-
-    precision highp float;
-
-    uniform sampler2D uTex;
-
-    varying vec4 vColor;
-    varying vec2 vUv;
-
-    void main() {
-      vec4 color = texture2D(uTex, vUv);
-      gl_FragColor = color * vColor;
-    }
-  `;
-
+  private _options: SpriteAnimationOptions;
   private _gl: WebGLRenderingContext;
   private _program: WGLInstancedProgram;
 
@@ -74,6 +93,8 @@ export class SpriteAnimationControl implements IWGLAnimationControl {
     this._gl = gl;
 
     const finalOptions = options as SpriteAnimationOptions; 
+    this._options = finalOptions;
+
     if (!finalOptions.textureUrl) {
       throw new Error("Texture URL not defined");
     }  
@@ -81,7 +102,7 @@ export class SpriteAnimationControl implements IWGLAnimationControl {
     this._fov = finalOptions.fov;
     this._depth = finalOptions.depth;
 
-    this._program = new WGLInstancedProgram(gl, this._vertexShader, this._fragmentShader);
+    this._program = new WGLInstancedProgram(gl, this.vertexShader, this.fragmentShader);
     this._data = new SpriteAnimationData(finalOptions);
 
     // set uniforms
@@ -100,7 +121,7 @@ export class SpriteAnimationControl implements IWGLAnimationControl {
       const near = Math.tan(0.5 * Math.PI - 0.5 * degToRad(this._fov)) * resolution.y / 2;
 
       //update dimensions
-      this.resize(resolution);     
+      this.resize(resolution);
       this._program.setIntVecUniform("uResolution", resolution);
 
       this._lastResolution.setFromVec2(resolution);
@@ -122,7 +143,7 @@ export class SpriteAnimationControl implements IWGLAnimationControl {
       const projectionMatrix = Mat4.buildPerspective(near, near + this._depth, 
         -resolution.x / 2, resolution.x / 2, -resolution.y / 2, resolution.y / 2);
       this._program.setFloatMatUniform("uProjection", projectionMatrix); 
-      //#endregion  
+      //#endregion
 
       //#region buffers
       this._program.setInstancedBufferAttribute("aColorInst", this._data.iColor, 

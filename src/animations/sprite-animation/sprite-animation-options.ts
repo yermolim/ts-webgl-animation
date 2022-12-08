@@ -92,6 +92,10 @@ export interface SpriteAnimationOptions extends AnimationOptions {
    * default: 0
    */
   opacityStep?: number;
+  /**
+   * enabled or disable opacity change depending on the distanse from the camera
+   */
+  depthAffectsOpacity: boolean;
 
   drawLines?: boolean;
   lineColor?: [r: number, g: number, b: number];
@@ -125,8 +129,9 @@ export const defaultSpriteAnimationOptions: SpriteAnimationOptions = {
   blur: 1,
   colors: [[255, 255, 255], [255, 244, 193], [250, 239, 219]],  
   fixedOpacity: null,
-  opacityMin: 0,
+  opacityMin: 0.5,
   opacityStep: 0,
+  depthAffectsOpacity: true,
 
   drawLines: true,
   lineColor: [113, 120, 146],

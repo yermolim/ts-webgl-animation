@@ -132,8 +132,6 @@ export class SpriteAnimationData {
   }
 
   private updateInstance(index: number, t: number, tempV2: Vec2) {
-    const {x: dx, y: dy, z: dz} = this._sceneDimensions;
-
     const ix = index * 3;
     const iy = ix + 1;
     const iz = iy + 1;
@@ -141,10 +139,11 @@ export class SpriteAnimationData {
     const prevZ = this._iPositions[iz];
     const [prev_vwz, prev_vhz] = this.getSceneDimensionsAtZ(prevZ, tempV2);
 
-    const nextZ = this.updateNextFrameZ(iz, dz, t);
+    const nextZ = this.updateNextFrameZ(iz, t);
     const [vwz, vhz] = this.getSceneDimensionsAtZ(nextZ, tempV2);
-    
-    // update instance matrices
+
+    const {x: dx, y: dy} = this._sceneDimensions;
+
     this._iData[index].mat.reset()
       .applyRotation("z", this.updateAngularRotation(index, t))
       .applyScaling(
@@ -158,7 +157,7 @@ export class SpriteAnimationData {
         nextZ,
       );
   }
-  
+
   /**
    * get the viewport size at the specified Z in the clip space units
    * (width = height = 1 at Z = 0)
@@ -317,14 +316,14 @@ export class SpriteAnimationData {
           uv = new Float32Array(2);
           uv[0] = this._options.textureMap[t % this._options.textureMap.length];
           uv[1] = this._options.textureMap[(t + 1) % this._options.textureMap.length];
-          
+
           color = new Float32Array(4);
           randomColor = getRandomArrayElement(this._options.colors);
           color[0] = randomColor[0] / 255;
           color[1] = randomColor[1] / 255;
           color[2] = randomColor[2] / 255;
           color[3] = this._options.fixedOpacity || getRandomFloat(this._options.opacityMin ?? 0, 1);
-          
+
           data[j] = {
             mat: new Mat4(),
             uv,
@@ -340,10 +339,10 @@ export class SpriteAnimationData {
     }
   }
 
-  private updateNextFrameZ(index: number, zViewSize: number, timeElapsed: number) {
+  private updateNextFrameZ(index: number, timeElapsed: number) {
     const prevFrameZ = this._iPositions[index];
     const velocityZ = this._iVelocities[index];
-    let nextZ = prevFrameZ + timeElapsed * velocityZ / zViewSize;
+    let nextZ = prevFrameZ + timeElapsed * velocityZ / this._sceneDimensions.z;
     // reverse the instance Z velocity vector if the current depth is out of bounds
     if (nextZ > -0.001) {
       nextZ = -0.001;
