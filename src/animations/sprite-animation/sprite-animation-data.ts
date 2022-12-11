@@ -115,6 +115,8 @@ export class SpriteAnimationData {
     pointerPosition: Vec2, pointerDown: boolean,
     elapsedTime: number) {
 
+    // console.log(pointerPosition);    
+
     const t = elapsedTime - this._lastFrameTimestamp;
     this._lastFrameTimestamp = elapsedTime;
 
@@ -214,7 +216,7 @@ export class SpriteAnimationData {
       const oldData = this._iData || [];
 
       // update instance arrays
-      
+
       // sizes
       const newSizesLength = length * 3;
       const newSizes = new Float32Array(newSizesLength);
@@ -229,7 +231,7 @@ export class SpriteAnimationData {
         newSizes[i++] = size;
         newSizes[i++] = size;
         newSizes[i++] = 1;
-      }        
+      }
       this._iSizes = newSizes;
 
       // basePositions
@@ -296,7 +298,7 @@ export class SpriteAnimationData {
       }
       this._iAngularVelocities = newAngularVelocities;
 
-      const data = new Array<SpriteData>(length);      
+      const data = new Array<SpriteData>(length);
       let t: number;
       // copy old data to new array
       const dataCopyLength = Math.min(length, oldLength);

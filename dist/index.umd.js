@@ -1444,7 +1444,6 @@
             canvas.style.width = "100%";
             canvas.style.height = "100%";
             canvas.style.filter = `blur(${this._options.blur}px)`;
-            console.log(this._options);
             this._container.append(canvas);
             this._canvas = canvas;
             this.onResize();
